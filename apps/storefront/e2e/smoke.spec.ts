@@ -63,6 +63,29 @@ async function expectLoadedImageBySource(page: Page, source: string) {
   await expect(image).not.toHaveJSProperty("naturalWidth", 0);
 }
 
+async function prepareCleanScreenshot(page: Page) {
+  await page.request.get("/__nextjs_disable_dev_indicator").catch(() => undefined);
+  await page.addStyleTag({
+    content: `
+      nextjs-portal,
+      [data-nextjs-dev-tools-button],
+      [data-nextjs-toast],
+      [data-nextjs-dialog-overlay],
+      [data-nextjs-dialog],
+      [aria-label="Open Next.js Dev Tools"],
+      [aria-label="Next.js Dev Tools"],
+      [aria-label="Issues"],
+      [aria-label="Next.js Dev Overlay"],
+      [data-testid="nextjs-dev-tools-indicator"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+    `
+  });
+}
+
 async function reactivateMerchantProduct(page: Page, productName: string) {
   await login(page, "merchant@example.com");
   for (let pageNo = 1; pageNo <= 5; pageNo += 1) {
@@ -745,6 +768,7 @@ test("@screenshots captures required viewports", async ({ page }, testInfo) => {
     }
     await page.goto(shot.route);
     await expect(page.locator("body")).toBeVisible();
+    await prepareCleanScreenshot(page);
     await page.screenshot({
       path: `../../artifacts/ui-checks/${shot.name}.png`,
       fullPage: true
