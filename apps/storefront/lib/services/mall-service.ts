@@ -51,6 +51,31 @@ function validateProductInput(input: ProductInput) {
   if (input.description.trim().length < 8) throw new Error("商品介绍至少 8 个字");
 }
 
+function validateCustomerProfile(input: { nickname: string; contactPhone: string; defaultAddress: string }) {
+  if (!input.nickname.trim()) throw new Error("昵称不能为空");
+  if (input.contactPhone.trim().length < 6) throw new Error("联系电话不能为空");
+  if (input.defaultAddress.trim().length < 8) throw new Error("默认地址至少 8 个字");
+}
+
+function validateRegisterInput(input: RegisterInput) {
+  if (!input.account.trim()) throw new Error("请输入手机号或邮箱");
+  if (input.password.length < 6) throw new Error("密码至少 6 位");
+  validateCustomerProfile(input);
+}
+
+function validateMerchantApplicationInput(input: MerchantApplicationInput) {
+  if (input.storeName.trim().length < 2) throw new Error("店铺名称至少 2 个字");
+  if (!input.categoryId.trim()) throw new Error("请选择经营类目");
+  if (input.description.trim().length < 8) throw new Error("店铺介绍至少 8 个字");
+  if (!input.licenseImageUrl.trim()) throw new Error("请上传或填写资质图片");
+}
+
+function validateStoreProfileInput(input: StoreProfileInput) {
+  if (input.name.trim().length < 2) throw new Error("店铺名称至少 2 个字");
+  if (!input.categoryId.trim()) throw new Error("请选择经营类目");
+  if (input.description.trim().length < 8) throw new Error("店铺介绍至少 8 个字");
+}
+
 export interface CheckoutInput {
   userId?: string;
   receiver: string;
@@ -235,6 +260,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async registerCustomer(input: RegisterInput): Promise<AuthResult> {
+    validateRegisterInput(input);
     if (getDemoSystemSetting("memberRegistration")?.value === "disabled") {
       throw new Error("会员注册已暂停，请稍后再试");
     }
@@ -254,6 +280,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async saveProfile(input: { userId?: string; nickname: string; contactPhone: string; defaultAddress: string }) {
+    validateCustomerProfile(input);
     saveDemoCustomerProfile(input);
     return "个人资料已保存";
   }
@@ -306,6 +333,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async submitMerchantApplication(input: MerchantApplicationInput) {
+    validateMerchantApplicationInput(input);
     if (listDemoStores().some((store) => store.ownerId === input.userId)) {
       throw new Error("当前账号已拥有店铺");
     }
@@ -324,6 +352,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async updateStoreProfile(input: StoreProfileInput) {
+    validateStoreProfileInput(input);
     updateDemoStoreProfile(input);
     return "店铺资料已保存";
   }
@@ -464,6 +493,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async registerCustomer(input: RegisterInput) {
+    validateRegisterInput(input);
     const db = await this.getDb();
     const registrationSetting = await db.systemSetting.findUnique({ where: { key: "memberRegistration" } });
     if (registrationSetting?.value === "disabled") {
@@ -508,6 +538,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async saveProfile(input: { userId?: string; nickname: string; contactPhone: string; defaultAddress: string }) {
+    validateCustomerProfile(input);
     const db = await this.getDb();
     const userId = activeUserId(input.userId);
     const user = await db.user.findUnique({ where: { id: userId } });
@@ -895,6 +926,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async submitMerchantApplication(input: MerchantApplicationInput) {
+    validateMerchantApplicationInput(input);
     const db = await this.getDb();
     const existingStore = await db.store.findFirst({
       where: { ownerId: input.userId }
@@ -982,6 +1014,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async updateStoreProfile(input: StoreProfileInput) {
+    validateStoreProfileInput(input);
     const db = await this.getDb();
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法保存资料");

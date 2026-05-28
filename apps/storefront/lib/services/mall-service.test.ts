@@ -207,6 +207,37 @@ describe("DemoMallWriteService", () => {
     })).rejects.toThrow("当前账号已拥有店铺");
   });
 
+  it("rejects invalid demo account profile and merchant form payloads", async () => {
+    await expect(service.registerCustomer({
+      account: "",
+      password: "12345678",
+      nickname: "新会员",
+      contactPhone: "13800000009",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
+    })).rejects.toThrow("请输入手机号或邮箱");
+
+    await expect(service.saveProfile({
+      nickname: "",
+      contactPhone: "13800000001",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
+    })).rejects.toThrow("昵称不能为空");
+
+    await expect(service.submitMerchantApplication({
+      userId: "user-customer-1",
+      storeName: "店",
+      categoryId: "cat-digital",
+      description: "店铺介绍符合长度。",
+      licenseImageUrl: "/uploads/license-demo.png"
+    })).rejects.toThrow("店铺名称至少 2 个字");
+
+    await expect(service.updateStoreProfile({
+      storeId: "store-minimal",
+      name: "极简生活旗舰店",
+      categoryId: "",
+      description: "桌面数码与轻办公设备精选。"
+    })).rejects.toThrow("请选择经营类目");
+  });
+
   it("returns role-specific sessions for seeded demo accounts", async () => {
     await expect(service.login({
       account: "merchant@example.com",
@@ -308,7 +339,7 @@ describe("DemoMallWriteService", () => {
       userId: "user-customer-1",
       storeName: "新店",
       categoryId: "cat-digital",
-      description: "经营桌面用品。",
+      description: "经营桌面用品和轻办公配件。",
       licenseImageUrl: "/uploads/license.png"
     })).resolves.toContain("待审核");
     await expect(service.publishProduct({
@@ -630,6 +661,30 @@ describe("PrismaMallWriteService", () => {
       defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
     })).rejects.toThrow("会员注册已暂停");
     expect(db.user.create).not.toHaveBeenCalled();
+  });
+
+  it("validates prisma registration and profile payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.registerCustomer({
+      account: "new@example.com",
+      password: "123",
+      nickname: "新会员",
+      contactPhone: "13800000009",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
+    })).rejects.toThrow("密码至少 6 位");
+    expect(db.systemSetting.findUnique).not.toHaveBeenCalled();
+    expect(db.user.create).not.toHaveBeenCalled();
+
+    await expect(service.saveProfile({
+      userId: "user-customer-1",
+      nickname: "林一",
+      contactPhone: "12345",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
+    })).rejects.toThrow("联系电话不能为空");
+    expect(db.user.findUnique).not.toHaveBeenCalled();
+    expect(db.customerProfile.upsert).not.toHaveBeenCalled();
   });
 
   it("increments an existing purchasable cart item", async () => {
@@ -1153,6 +1208,21 @@ describe("PrismaMallWriteService", () => {
     })).rejects.toThrow("只能维护自己的店铺");
   });
 
+  it("validates prisma store profile payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.updateStoreProfile({
+      actorId: "merchant-1",
+      storeId: "store-minimal",
+      name: "店",
+      categoryId: "cat-digital",
+      description: "桌面数码与轻办公设备精选。"
+    })).rejects.toThrow("店铺名称至少 2 个字");
+    expect(db.store.findUnique).not.toHaveBeenCalled();
+    expect(db.store.update).not.toHaveBeenCalled();
+  });
+
   it("validates prisma product payloads before database writes", async () => {
     const db = createMockDb();
     const service = new PrismaMallWriteService(db as never);
@@ -1658,6 +1728,21 @@ describe("PrismaMallWriteService", () => {
         status: "ACTIVE"
       })
     });
+  });
+
+  it("validates prisma merchant application payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.submitMerchantApplication({
+      userId: "user-applicant",
+      storeName: "自动审核店铺",
+      categoryId: "cat-digital",
+      description: "太短",
+      licenseImageUrl: "/uploads/license-auto.png"
+    })).rejects.toThrow("店铺介绍至少 8 个字");
+    expect(db.store.findFirst).not.toHaveBeenCalled();
+    expect(db.merchantApplication.create).not.toHaveBeenCalled();
   });
 
   it("rejects merchant applications from users that already own a store", async () => {
