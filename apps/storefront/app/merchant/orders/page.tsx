@@ -7,6 +7,7 @@ import { createShipmentAction, handleAfterSaleAction } from "@/lib/actions";
 import { getActiveMerchantStore, getMerchantStats, listMerchantAfterSalesPage, listMerchantOrdersPage } from "@/lib/data";
 import { badgeToneForOrder, formatAfterSaleStatus, formatAfterSaleType, formatMoney, formatOrderStatus } from "@/lib/format";
 import { requireSessionUser } from "@/lib/session";
+import { canCreateShipmentForOrder } from "./view-model";
 
 const orderStatuses: OrderStatus[] = ["PENDING_PAYMENT", "PAID", "TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "AFTER_SALE"];
 const afterSaleStatuses: AfterSaleStatus[] = ["REQUESTED", "APPROVED", "RETURNING", "REFUNDED", "REJECTED", "CLOSED"];
@@ -97,7 +98,7 @@ export default async function MerchantOrdersPage({
                   <td><StatusBadge tone={badgeToneForOrder(order.status)}>{formatOrderStatus(order.status)}</StatusBadge></td>
                   <td>{order.shipment?.trackingNo ?? "待生成"}</td>
                   <td>
-                    {order.status === "TO_SHIP" ? (
+                    {canCreateShipmentForOrder(order) ? (
                       <ActionForm action={createShipmentAction} submitLabel="生成运单">
                         <input type="hidden" name="orderNo" value={order.orderNo} />
                         <input type="hidden" name="storeId" value={store.id} />
