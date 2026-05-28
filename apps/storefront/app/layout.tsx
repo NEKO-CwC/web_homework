@@ -71,6 +71,7 @@ async function listRoleSearchItems(user: Awaited<ReturnType<typeof getCurrentSes
   if (!user) return [];
   if (user.role === "MERCHANT") {
     const store = await getActiveMerchantStore(user.id);
+    if (!store) return [];
     const [merchantProducts, merchantOrders, merchantAfterSales] = await Promise.all([
       listMerchantProducts(store.id),
       listMerchantOrders(store.id),

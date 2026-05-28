@@ -24,6 +24,14 @@ export default async function MerchantProductsPage({
     ? params.productStatus
     : "";
   const store = await getActiveMerchantStore(user.id);
+  if (!store) {
+    return (
+      <AccessDenied
+        title="暂无店铺"
+        message="当前账号还没有可管理店铺，请先提交开店申请并等待管理员审核通过。"
+      />
+    );
+  }
   const [categories, productsPage] = await Promise.all([
     listCategories(),
     listMerchantProductsPage(store.id, {

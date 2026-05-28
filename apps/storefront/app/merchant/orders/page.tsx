@@ -31,6 +31,14 @@ export default async function MerchantOrdersPage({
     ? params?.afterSaleStatus as AfterSaleStatus
     : "";
   const store = await getActiveMerchantStore(user.id);
+  if (!store) {
+    return (
+      <AccessDenied
+        title="暂无店铺"
+        message="当前账号还没有可处理订单的店铺，请先完成商家入驻审核。"
+      />
+    );
+  }
   const [merchantOrdersPage, afterSalesPage, stats] = await Promise.all([
     listMerchantOrdersPage(store.id, { status: orderStatus, page: params?.orderPage, pageSize: 2 }),
     listMerchantAfterSalesPage(store.id, { status: afterSaleStatus, page: params?.afterSalePage, pageSize: 2 }),

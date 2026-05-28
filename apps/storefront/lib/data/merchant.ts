@@ -20,7 +20,7 @@ export async function getActiveMerchantStore(ownerId = ACTIVE_MERCHANT_ID) {
       where: { ownerId },
       orderBy: { createdAt: "asc" }
     });
-    return store ? mapStore(store) : stores[0];
+    return store ? mapStore(store) : undefined;
   }
   return listDemoStores().find((store) => store.ownerId === ownerId) ?? stores[0];
 }
