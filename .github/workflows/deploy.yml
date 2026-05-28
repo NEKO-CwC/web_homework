@@ -1,0 +1,104 @@
+name: CI and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-homework-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_DOMAIN: ${{ secrets.SSH_DOMAIN }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/web_homework_deploy_key
+          chmod 600 ~/.ssh/web_homework_deploy_key
+          ssh-keyscan -p "$SSH_PORT" "$SSH_DOMAIN" >> ~/.ssh/known_hosts
+
+      - name: Write deployment environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SESSION_SECRET: ${{ secrets.AUTH_SESSION_SECRET }}
+          MALL_WRITE_MODE: ${{ secrets.MALL_WRITE_MODE }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          {
+            printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
+            printf 'AUTH_SESSION_SECRET=%s\n' "$AUTH_SESSION_SECRET"
+            printf 'MALL_WRITE_MODE=%s\n' "$MALL_WRITE_MODE"
+          } > "$RUNNER_TEMP/web_homework.env"
+
+      - name: Copy environment to server
+        env:
+          SSH_DOMAIN: ${{ secrets.SSH_DOMAIN }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_DEPLOY_PATH: ${{ secrets.SSH_DEPLOY_PATH }}
+        run: |
+          set -Eeuo pipefail
+          scp -P "$SSH_PORT" -i ~/.ssh/web_homework_deploy_key "$RUNNER_TEMP/web_homework.env" "$SSH_USER@$SSH_DOMAIN:$SSH_DEPLOY_PATH/.env"
+
+      - name: Deploy on server
+        env:
+          SSH_DOMAIN: ${{ secrets.SSH_DOMAIN }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_DEPLOY_PATH: ${{ secrets.SSH_DEPLOY_PATH }}
+        run: |
+          set -Eeuo pipefail
+          ssh -p "$SSH_PORT" -i ~/.ssh/web_homework_deploy_key "$SSH_USER@$SSH_DOMAIN" "cd '$SSH_DEPLOY_PATH' && git fetch --prune origin main && git checkout main && git pull --ff-only origin main && bash infra/scripts/deploy.sh"

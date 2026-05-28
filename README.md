@@ -6,7 +6,7 @@
 
 ## 当前实现范围
 
-本轮先聚焦全栈项目落地，暂时跳过 Compose 编排和 CI 远程部署。已建立 pnpm monorepo、Next.js App Router 单应用、共享类型包、共享 UI primitives、Prisma schema 和 seed 脚本。
+已建立 pnpm monorepo、Next.js App Router 单应用、共享类型包、共享 UI primitives、Prisma schema、seed 脚本、Docker Compose 编排和 GitHub Actions 远程部署。
 
 三端页面当前由 `apps/storefront` 承载：
 
@@ -22,6 +22,38 @@ pnpm dev
 ```
 
 默认访问 `http://localhost:3000`。
+
+## Docker Compose
+
+生产环境默认不启动 Postgres，`DATABASE_URL` 指向外部 PostgreSQL。宿主机反代应指向本机 `4862`，Compose 会把应用容器的 `3000` 映射到宿主机 `4862`。
+
+```bash
+cp .env.example .env
+docker compose build storefront migrate
+docker compose run --rm migrate
+docker compose up -d storefront
+```
+
+如需一键启动本地 Postgres，启用 `postgres` profile，并把 `.env` 中的 `DATABASE_URL` 改为 `postgres` 服务名：
+
+```dotenv
+DATABASE_URL="postgresql://minimal_mall:minimal_mall@postgres:5432/minimal_mall?schema=public"
+POSTGRES_DB="minimal_mall"
+POSTGRES_USER="minimal_mall"
+POSTGRES_PASSWORD="minimal_mall"
+```
+
+```bash
+docker compose --profile postgres up -d postgres
+docker compose run --rm migrate
+docker compose up -d storefront
+```
+
+远端服务器可执行同仓库脚本完成更新、迁移、构建和启动：
+
+```bash
+bash infra/scripts/deploy.sh
+```
 
 ## 验证命令
 
@@ -70,6 +102,25 @@ pnpm prisma:smoke
 ```
 
 默认 `MALL_WRITE_MODE=demo` 使用内置 seed/fixture 演示数据，便于无数据库运行页面。配置 PostgreSQL 并完成 migrate/seed 后，可将 `.env` 中的 `MALL_WRITE_MODE` 改为 `prisma`，Server Actions 会写入真实 Prisma 数据库，覆盖购物车、结算支付、确认收货、评价、售后、开店申请、商品发布、商家发货、商家审核、首页配置和系统配置。
+
+Compose 和生产 CI 使用 `MALL_WRITE_MODE=prisma`，并要求 `.env` 或 GitHub Secrets 提供 `DATABASE_URL` 与 `AUTH_SESSION_SECRET`。
+
+## CI 远程部署
+
+`.github/workflows/deploy.yml` 在 pull request 上执行安装、Prisma client 生成、lint、typecheck、测试和构建；推送到 `main` 时，在验证通过后通过 SSH 连接服务器部署。
+
+需要配置 GitHub Secrets：
+
+- `SSH_DEPLOY_PATH`：服务器项目目录，例如 `/home/neko/Project/web_homework`
+- `SSH_DOMAIN`：服务器域名，例如 `neko-dashboard.com`
+- `SSH_PORT`：SSH 端口，例如 `22`
+- `SSH_USER`：SSH 用户，例如 `root`
+- `SSH_KEY`：连接服务器的私钥
+- `DATABASE_URL`：生产 PostgreSQL URL，例如 `postgresql://USER:PASSWORD@HOST:5432/default?schema=web_homework`
+- `AUTH_SESSION_SECRET`：生产会话密钥
+- `MALL_WRITE_MODE`：生产写入模式，使用 `prisma`
+
+部署步骤会把 Secrets 写入服务器项目目录的 `.env`，随后执行 `git pull --ff-only`、`docker compose build storefront migrate`、`docker compose run --rm migrate` 和 `docker compose up -d storefront`。
 
 `pnpm prisma:smoke` 会在当前 `DATABASE_URL` 指向的 schema 中创建临时顾客，执行真实 Prisma 写路径的下单、虚拟支付、商家发货、确认收货和评价，然后清理临时用户、订单、审计记录并恢复商品库存。
 

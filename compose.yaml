@@ -1,0 +1,79 @@
+name: web-homework
+
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+
+x-app-environment: &app-environment
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?AUTH_SESSION_SECRET is required}
+  MALL_WRITE_MODE: ${MALL_WRITE_MODE:-prisma}
+  NEXT_TELEMETRY_DISABLED: "1"
+
+services:
+  storefront:
+    image: web-homework-storefront:latest
+    build: *app-build
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "4862:3000"
+    volumes:
+      - storefront-uploads:/app/apps/storefront/public/uploads
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  migrate:
+    image: web-homework-storefront:latest
+    build: *app-build
+    profiles:
+      - migrate
+    restart: "no"
+    environment:
+      <<: *app-environment
+      NODE_ENV: production
+    command:
+      - pnpm
+      - --filter
+      - "@minimal-mall/db"
+      - exec
+      - prisma
+      - migrate
+      - deploy
+      - --schema
+      - prisma/schema.prisma
+
+  postgres:
+    image: postgres:16-alpine
+    profiles:
+      - postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-minimal_mall}
+      POSTGRES_USER: ${POSTGRES_USER:-minimal_mall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minimal_mall}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  storefront-uploads:
+  postgres-data:
