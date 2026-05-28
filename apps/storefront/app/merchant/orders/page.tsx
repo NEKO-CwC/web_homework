@@ -93,7 +93,7 @@ export default async function MerchantOrdersPage({
               return (
                 <tr key={order.id}>
                   <td>{order.orderNo}</td>
-                  <td>{order.userId === "user-customer-1" ? "林一" : "陈舟"}</td>
+                  <td>{order.customerName}</td>
                   <td>{product?.name ?? "商品"}</td>
                   <td><StatusBadge tone={badgeToneForOrder(order.status)}>{formatOrderStatus(order.status)}</StatusBadge></td>
                   <td>{order.shipment?.trackingNo ?? "待生成"}</td>

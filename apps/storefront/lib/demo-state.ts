@@ -449,6 +449,31 @@ export function getDemoCustomerProfile(userId = currentCustomer.id): DemoCustome
   return cloneCustomerProfile(profile ?? currentCustomer);
 }
 
+export function findDemoCustomerProfileById(userId: string): DemoCustomerProfile | undefined {
+  const profile = getDemoStateStore().customerProfiles.find((item) => item.id === userId);
+  if (profile) return cloneCustomerProfile(profile);
+  if (userId === currentCustomer.id) return cloneCustomerProfile(currentCustomer);
+  if (userId === "user-customer-2") {
+    return {
+      id: "user-customer-2",
+      nickname: "陈舟",
+      email: "buyer@example.com",
+      phone: "13800000002",
+      defaultAddress: "江西省南昌市青山湖区创新路 18 号"
+    };
+  }
+  if (userId.startsWith("user-e2e-")) {
+    return {
+      id: userId,
+      nickname: "验收顾客",
+      email: "",
+      phone: "",
+      defaultAddress: currentCustomer.defaultAddress
+    };
+  }
+  return undefined;
+}
+
 export function findDemoCustomerProfileByAccount(account: string): DemoCustomerProfile | undefined {
   const profile = getDemoStateStore().customerProfiles.find((item) =>
     item.email === account || item.phone === account

@@ -1,6 +1,12 @@
 import type { AfterSaleStatus, OrderStatus } from "@minimal-mall/types";
 import { stores } from "../fixtures";
-import { getDemoOrderProduct, listDemoAfterSales, listDemoOrders, listDemoStores } from "../demo-state";
+import {
+  findDemoCustomerProfileById,
+  getDemoOrderProduct,
+  listDemoAfterSales,
+  listDemoOrders,
+  listDemoStores
+} from "../demo-state";
 import {
   getPrismaClient,
   isPrismaDataMode,
@@ -12,6 +18,22 @@ import {
 import { normalizePagination, paginateArray, type PaginationInput } from "./pagination";
 
 const ACTIVE_MERCHANT_ID = "merchant-1";
+
+function formatCustomerName(order: {
+  userId: string;
+  user?: {
+    email?: string | null;
+    phone?: string | null;
+    customerProfile?: { nickname?: string | null } | null;
+  } | null;
+}) {
+  return order.user?.customerProfile?.nickname ?? order.user?.email ?? order.user?.phone ?? order.userId;
+}
+
+function demoCustomerName(userId: string) {
+  const profile = findDemoCustomerProfileById(userId);
+  return profile?.nickname ?? userId;
+}
 
 export async function getActiveMerchantStore(ownerId = ACTIVE_MERCHANT_ID) {
   if (isPrismaDataMode()) {
@@ -35,6 +57,9 @@ export async function listMerchantOrders(storeId: string) {
         }
       },
       include: {
+        user: {
+          include: { customerProfile: true }
+        },
         items: {
           where: { storeId },
           include: {
@@ -57,6 +82,7 @@ export async function listMerchantOrders(storeId: string) {
     });
     return rows.map((row) => ({
       ...mapOrder(row),
+      customerName: formatCustomerName(row),
       primaryProduct: row.items[0] ? mapProduct(row.items[0].product) : undefined
     }));
   }
@@ -64,6 +90,7 @@ export async function listMerchantOrders(storeId: string) {
     .filter((order) => order.items.some((item) => item.storeId === storeId))
     .map((order) => ({
       ...order,
+      customerName: demoCustomerName(order.userId),
       primaryProduct: getDemoOrderProduct(order)
     }));
 }
@@ -86,6 +113,9 @@ export async function listMerchantOrdersPage(storeId: string, filters: MerchantO
       db.order.findMany({
         where,
         include: {
+          user: {
+            include: { customerProfile: true }
+          },
           items: {
             where: { storeId },
             include: {
@@ -113,6 +143,7 @@ export async function listMerchantOrdersPage(storeId: string, filters: MerchantO
     return {
       items: rows.map((row) => ({
         ...mapOrder(row),
+        customerName: formatCustomerName(row),
         primaryProduct: row.items[0] ? mapProduct(row.items[0].product) : undefined
       })),
       page,
@@ -126,6 +157,7 @@ export async function listMerchantOrdersPage(storeId: string, filters: MerchantO
     .filter((order) => !filters.status || order.status === filters.status)
     .map((order) => ({
       ...order,
+      customerName: demoCustomerName(order.userId),
       primaryProduct: getDemoOrderProduct(order)
     }));
   return paginateArray(filtered, filters);
