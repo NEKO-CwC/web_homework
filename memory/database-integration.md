@@ -3,15 +3,15 @@ name: Database Integration
 description: Verified real PostgreSQL integration status and operational notes.
 metadata:
   type: reference
-updated_at: 2026-05-28
-last_verified_scope: "Prisma connection, migration status, and seed verification for schema web_homework"
+updated_at: 2026-05-29
+last_verified_scope: "Prisma connection, migration status, and seed verification for schema web_homework after schema recreation"
 ---
 
 # Database Integration
 
 The hosted PostgreSQL database is reachable with Prisma when `DATABASE_URL` includes `?schema=web_homework`.
 
-Verified on 2026-05-28:
+Verified on 2026-05-29:
 - `current_database()` returned `default`.
 - `current_schema()` returned `web_homework`.
 - `current_user` returned the project database user.
