@@ -8,6 +8,7 @@ const service = new PrismaMallWriteService(prisma);
 let userId: string | undefined;
 let orderId: string | undefined;
 let orderNo: string | undefined;
+let afterSaleId: string | undefined;
 let productId: string | undefined;
 let originalProductStatus: ProductStatus | undefined;
 let stockAdjusted = false;
@@ -19,12 +20,13 @@ function assertDatabaseUrl() {
 }
 
 async function cleanup() {
-  if (orderId || userId) {
+  if (orderId || userId || afterSaleId) {
     await prisma.auditLog.deleteMany({
       where: {
         OR: [
           ...(orderId ? [{ targetId: orderId }] : []),
-          ...(userId ? [{ targetId: userId }] : [])
+          ...(userId ? [{ targetId: userId }] : []),
+          ...(afterSaleId ? [{ targetId: afterSaleId }] : [])
         ]
       }
     });
@@ -122,6 +124,44 @@ async function main() {
     status: "SHIPPED"
   });
 
+  await service.createAfterSale({
+    userId,
+    orderItemId: shippedOrder.items[0]?.id ?? "",
+    type: "RETURN_REFUND",
+    reason: "真实业务烟测售后",
+    description: "真实业务烟测发起售后，验证商家处理链路。",
+    evidenceUrl: "/uploads/evidence-smoke.png"
+  });
+
+  const requestedAfterSale = await prisma.afterSaleRequest.findFirst({
+    where: {
+      userId,
+      orderItemId: shippedOrder.items[0]?.id
+    },
+    orderBy: { createdAt: "desc" }
+  });
+  if (!requestedAfterSale) throw new Error("Prisma smoke after-sale request was not created");
+  afterSaleId = requestedAfterSale.id;
+  if (requestedAfterSale.status !== "REQUESTED") {
+    throw new Error(`Expected REQUESTED after-sale, received ${requestedAfterSale.status}`);
+  }
+
+  await service.handleAfterSale({
+    actorId: product.store.ownerId,
+    afterSaleId,
+    action: "reject",
+    reply: "真实业务烟测驳回售后，订单恢复评价链路。"
+  });
+
+  const rejectedAfterSale = await prisma.afterSaleRequest.findUnique({
+    where: { id: afterSaleId },
+    include: { orderItem: { include: { order: true } } }
+  });
+  if (rejectedAfterSale?.status !== "REJECTED") throw new Error("Prisma smoke after-sale was not rejected");
+  if (rejectedAfterSale.orderItem.order.status !== "DELIVERED") {
+    throw new Error("Prisma smoke rejected after-sale did not restore order to DELIVERED");
+  }
+
   await service.submitReview({
     userId,
     orderItemId: shippedOrder.items[0]?.id ?? "",
@@ -144,6 +184,7 @@ async function main() {
     productId: product.id,
     orderNo,
     trackingNo: shipment.trackingNo,
+    afterSaleStatus: rejectedAfterSale.status,
     status: completedOrder.status
   }, null, 2));
 }
