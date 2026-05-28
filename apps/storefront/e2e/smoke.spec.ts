@@ -159,26 +159,32 @@ test.describe("core route smoke", () => {
 test("protected pages require login or the right role", async ({ page }) => {
   await page.goto("/cart");
   await expect(page.getByRole("heading", { name: "请先登录" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "登录或注册" })).toBeVisible();
   await page.goto("/merchant/products");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "请先登录" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "登录或注册" })).toBeVisible();
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "请先登录" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "登录或注册" })).toBeVisible();
 
   await login(page, "customer@example.com");
   await page.goto("/orders");
   await expect(page.getByText("订单 / 虚拟物流").first()).toBeVisible();
   await page.goto("/merchant/products");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问卖家中心" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "申请开店" })).toBeVisible();
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问管理后台" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "切换账号" })).toBeVisible();
 
   await login(page, "merchant@example.com");
   await page.goto("/merchant/products");
   await expect(page.getByText("商家商品 / 店铺管理").first()).toBeVisible();
   await page.goto("/orders");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问此页面" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "切换账号" })).toBeVisible();
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问管理后台" })).toBeVisible();
 
   await login(page, "admin@example.com");
   await page.goto("/admin");
@@ -187,29 +193,47 @@ test("protected pages require login or the right role", async ({ page }) => {
   await expect(page.getByText("虚拟运单待生成")).toBeVisible();
   await expect(page.getByText("3 笔待发货订单需要商家处理")).toBeVisible();
   await page.goto("/merchant/products");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问卖家中心" })).toBeVisible();
   await page.goto("/cart");
-  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前账号不能访问此页面" })).toBeVisible();
 });
 
-test("navigation marks the current page and mobile menu can close", async ({ page }) => {
-  await page.goto("/orders");
-  await expect(page.getByRole("link", { name: "订单 / 虚拟物流" })).toHaveAttribute("aria-current", "page");
+test("storefront navigation hides workbench entries from visitors", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "商城导航" }).getByRole("link", { name: /首页/ })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: /商品管理/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /订单发货/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /管理后台/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /系统维护/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /申请开店/ }).first()).toBeVisible();
+});
+
+test("customer storefront navigation stays shopping focused", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await expect(page.getByRole("navigation", { name: "商城导航" }).getByRole("link", { name: /我的订单/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /商品管理/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /管理后台/ })).toHaveCount(0);
+});
+
+test("workbench navigation is role specific and mobile menu can close", async ({ page }) => {
+  await login(page, "merchant@example.com");
+  await page.goto("/merchant/products");
+  await expect(page.getByRole("navigation", { name: "卖家中心" }).getByRole("link", { name: "商品管理 / 店铺资料" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: /商家审核/ })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/merchant/orders");
   const menuButton = page.getByRole("button", { name: "打开导航" });
   await expect(menuButton).toHaveAttribute("aria-expanded", "false");
   await menuButton.click();
   await expect(menuButton).toHaveAttribute("aria-expanded", "true");
-
   await page.getByRole("button", { name: "关闭导航", exact: true }).click();
   await expect(menuButton).toHaveAttribute("aria-expanded", "false");
 
-  await menuButton.click();
-  await page.getByRole("link", { name: "商品 / 店铺管理" }).click();
-  await expect(page).toHaveURL(/\/merchant\/products/);
-  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  await login(page, "admin@example.com");
+  await page.goto("/admin/system");
+  await expect(page.getByRole("navigation", { name: "管理后台" }).getByRole("link", { name: "系统维护" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: /订单发货/ })).toHaveCount(0);
 });
 
 test.describe("customer route smoke after login", () => {
@@ -347,6 +371,7 @@ test("global search keeps order results behind customer login", async ({ page })
 
 test("global search exposes merchant-scoped products orders and after-sales", async ({ page }) => {
   await login(page, "merchant@example.com");
+  await page.goto("/merchant/orders");
 
   await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("MO20260528001");
   await expect(page.getByRole("link", { name: /商家订单\s+MO20260528001/ })).toBeVisible();
@@ -357,6 +382,7 @@ test("global search exposes merchant-scoped products orders and after-sales", as
 
 test("global search exposes admin-scoped merchants banners and audit logs", async ({ page }) => {
   await login(page, "admin@example.com");
+  await page.goto("/admin/system");
 
   await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("潮流配件仓");
   await expect(page.getByRole("link", { name: /商家申请\s+潮流配件仓/ })).toBeVisible();
