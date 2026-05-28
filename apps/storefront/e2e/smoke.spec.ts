@@ -52,19 +52,17 @@ const screenshotPages = [
 
 const screenshotViewports = [
   { name: "desktop", size: { width: 1440, height: 900 } },
+  { name: "tablet", size: { width: 768, height: 1024 } },
   { name: "mobile", size: { width: 390, height: 844 } }
 ] as const;
 
-const screenshotShots = [
-  ...screenshotViewports.flatMap((viewport) =>
-    screenshotPages.map((page) => ({
-      ...page,
-      name: `${viewport.name}-${page.name}`,
-      size: viewport.size
-    }))
-  ),
-  { name: "tablet-orders", size: { width: 768, height: 1024 }, route: "/orders", account: "customer@example.com" }
-] as const;
+const screenshotShots = screenshotViewports.flatMap((viewport) =>
+  screenshotPages.map((page) => ({
+    ...page,
+    name: `${viewport.name}-${page.name}`,
+    size: viewport.size
+  }))
+);
 
 async function login(page: Page, account: string) {
   await page.goto("/account");
