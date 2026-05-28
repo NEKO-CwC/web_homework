@@ -33,9 +33,12 @@ pnpm test:coverage
 pnpm build
 pnpm e2e
 pnpm ui:screenshots
+pnpm performance
 ```
 
 Coverage output is written to `coverage/storefront` and `coverage/auth`; thresholds enforce 80% line/function/statement coverage and 70% branch coverage for tested library modules.
+
+`pnpm performance` 预热首页后验证首页首屏商品列表在本地开发环境下 1 秒内完成加载，对应 PRD 的首页性能门禁。
 
 ## 数据库准备
 

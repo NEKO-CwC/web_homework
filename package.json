@@ -12,6 +12,7 @@
     "test:coverage": "pnpm --filter @minimal-mall/storefront test:coverage && pnpm --filter @minimal-mall/auth test:coverage",
     "e2e": "pnpm --filter @minimal-mall/storefront e2e",
     "ui:screenshots": "pnpm --filter @minimal-mall/storefront ui:screenshots",
+    "performance": "pnpm --filter @minimal-mall/storefront performance",
     "prisma:generate": "pnpm --filter @minimal-mall/db prisma:generate",
     "prisma:migrate": "pnpm --filter @minimal-mall/db prisma:migrate",
     "db:seed": "pnpm --filter @minimal-mall/db db:seed",

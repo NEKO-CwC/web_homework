@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "ui:screenshots": "playwright test e2e/smoke.spec.ts --project=chromium --grep @screenshots",
+    "performance": "playwright test e2e/performance.spec.ts --project=chromium",
     "prisma:smoke": "tsx scripts/prisma-business-smoke.ts"
   },
   "dependencies": {
