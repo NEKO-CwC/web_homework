@@ -1,0 +1,37 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@minimal-mall/auth": [
+        "../../packages/auth/src/index.ts"
+      ],
+      "@minimal-mall/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@minimal-mall/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@minimal-mall/ui": [
+        "../../packages/ui/src/index.tsx"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

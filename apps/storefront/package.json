@@ -1,0 +1,37 @@
+{
+  "name": "@minimal-mall/storefront",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
+    "ui:screenshots": "playwright test e2e/smoke.spec.ts --project=chromium --grep @screenshots"
+  },
+  "dependencies": {
+    "@minimal-mall/auth": "workspace:*",
+    "@minimal-mall/db": "workspace:*",
+    "@minimal-mall/types": "workspace:*",
+    "@minimal-mall/ui": "workspace:*",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.6",
+    "eslint-config-next": "^15.3.3"
+  }
+}
