@@ -9,9 +9,14 @@ import {
   listDemoAvailableProducts,
   listDemoHomeBanners,
   listDemoProducts,
+  listDemoStores,
   resetDemoState,
   updateDemoSystemSetting
 } from "../demo-state";
+import {
+  listCurrentUserMerchantApplications,
+  listMerchantApplicationsPage
+} from "../data/admin";
 import { DemoMallWriteService, PrismaMallWriteService } from "./mall-service";
 
 function createMockDb() {
@@ -282,6 +287,103 @@ describe("DemoMallWriteService", () => {
 
   it("rejects invalid merchant review input", async () => {
     await expect(service.reviewMerchantApplication({ action: "reject" })).rejects.toThrow("驳回必须填写原因");
+  });
+
+  it("keeps manual demo merchant applications visible through review", async () => {
+    await expect(service.submitMerchantApplication({
+      userId: "user-demo-applicant",
+      storeName: "手动审核同步店",
+      categoryId: "cat-digital",
+      description: "提交后应同步进入管理员审核队列。",
+      licenseImageUrl: "/uploads/license-manual-sync.png"
+    })).resolves.toMatchObject({ message: expect.stringContaining("待审核") });
+
+    const applications = await listCurrentUserMerchantApplications("user-demo-applicant");
+    expect(applications).toEqual([
+      expect.objectContaining({
+        userId: "user-demo-applicant",
+        storeName: "手动审核同步店",
+        status: "SUBMITTED"
+      })
+    ]);
+    await expect(listMerchantApplicationsPage({
+      status: "SUBMITTED",
+      pageSize: 10
+    })).resolves.toMatchObject({
+      total: 2,
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          id: applications[0]?.id,
+          userId: "user-demo-applicant",
+          status: "SUBMITTED"
+        })
+      ])
+    });
+    await expect(service.submitMerchantApplication({
+      userId: "user-demo-applicant",
+      storeName: "重复待审店",
+      categoryId: "cat-home",
+      description: "已有待审核申请时不能重复提交。",
+      licenseImageUrl: "/uploads/license-repeat-pending.png"
+    })).rejects.toThrow("已有待审核开店申请");
+
+    await expect(service.reviewMerchantApplication({
+      actorId: "admin-1",
+      applicationId: applications[0]?.id,
+      action: "approve"
+    })).resolves.toContain("店铺已生成");
+
+    await expect(listCurrentUserMerchantApplications("user-demo-applicant")).resolves.toEqual([
+      expect.objectContaining({
+        id: applications[0]?.id,
+        status: "APPROVED"
+      })
+    ]);
+    expect(listDemoStores()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ownerId: "user-demo-applicant",
+        name: "手动审核同步店",
+        status: "ACTIVE"
+      })
+    ]));
+    const newMerchant = await service.registerCustomer({
+      account: "manual-merchant@example.com",
+      password: "12345678",
+      nickname: "手动商家",
+      contactPhone: "13800000066",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 66 号"
+    });
+    await service.submitMerchantApplication({
+      userId: newMerchant.user.id,
+      storeName: "真实账号审核店",
+      categoryId: "cat-digital",
+      description: "审核通过后重新登录应进入商家中台。",
+      licenseImageUrl: "/uploads/license-real-account.png"
+    });
+    const [newMerchantApplication] = await listCurrentUserMerchantApplications(newMerchant.user.id);
+    await service.reviewMerchantApplication({
+      actorId: "admin-1",
+      applicationId: newMerchantApplication?.id,
+      action: "approve"
+    });
+    await expect(service.login({
+      account: "manual-merchant@example.com",
+      password: "12345678"
+    })).resolves.toMatchObject({
+      message: "登录成功，已进入商家中台",
+      user: {
+        id: newMerchant.user.id,
+        role: "MERCHANT",
+        storeIds: [expect.stringMatching(/^store-demo-/)]
+      }
+    });
+    await expect(service.submitMerchantApplication({
+      userId: "user-demo-applicant",
+      storeName: "已有店铺重复申请",
+      categoryId: "cat-home",
+      description: "审核通过后已有店铺不能再次提交。",
+      licenseImageUrl: "/uploads/license-existing-store.png"
+    })).rejects.toThrow("当前账号已拥有店铺");
   });
 
   it("handles after-sale actions through shared transitions", async () => {

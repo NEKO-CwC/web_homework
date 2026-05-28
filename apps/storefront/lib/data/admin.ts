@@ -1,6 +1,12 @@
 import type { AuditLog, MerchantApplicationStatus, StoreStatus, UserRole } from "@minimal-mall/types";
-import { auditLogs, merchantApplications } from "../fixtures";
-import { listDemoAfterSales, listDemoHomeBanners, listDemoStores, listDemoSystemSettings } from "../demo-state";
+import { auditLogs } from "../fixtures";
+import {
+  listDemoAfterSales,
+  listDemoHomeBanners,
+  listDemoMerchantApplications,
+  listDemoStores,
+  listDemoSystemSettings
+} from "../demo-state";
 import {
   getPrismaClient,
   isPrismaDataMode,
@@ -31,7 +37,7 @@ export async function getAdminOverview() {
   }
   return {
     storeCount: listDemoStores().length,
-    pendingMerchantCount: merchantApplications.filter((item) => item.status === "SUBMITTED").length,
+    pendingMerchantCount: listDemoMerchantApplications().filter((item) => item.status === "SUBMITTED").length,
     onlineBannerCount: listDemoHomeBanners({ onlineOnly: true }).length,
     afterSaleCount: listDemoAfterSales().filter((item) => item.status === "REQUESTED").length,
     health: "99.2%"
@@ -56,7 +62,7 @@ export async function listMerchantApplications() {
       submittedAt: item.submittedAt.toISOString().slice(0, 16).replace("T", " ")
     }));
   }
-  return merchantApplications;
+  return listDemoMerchantApplications();
 }
 
 export interface MerchantApplicationFilters extends PaginationInput {
@@ -114,7 +120,7 @@ export async function listMerchantApplicationsPage(filters: MerchantApplicationF
     };
   }
   return paginateArray(
-    merchantApplications.filter((item) => !filters.status || item.status === filters.status),
+    listDemoMerchantApplications().filter((item) => !filters.status || item.status === filters.status),
     filters
   );
 }
@@ -138,7 +144,7 @@ export async function listCurrentUserMerchantApplications(userId = "user-custome
       submittedAt: item.submittedAt.toISOString().slice(0, 16).replace("T", " ")
     }));
   }
-  return merchantApplications.filter((item) => item.userId === userId);
+  return listDemoMerchantApplications(userId);
 }
 
 export async function listAdminStores() {

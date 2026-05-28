@@ -2,6 +2,7 @@ import {
   canCreateAfterSale,
   canReviewOrderItem,
   nextAfterSaleStatus,
+  nextMerchantApplicationStatus,
   nextOrderStatusAfterReceive,
   isProductPurchasable,
   nextOrderStatusAfterShipment
@@ -12,6 +13,7 @@ import type {
   AfterSaleType,
   BannerStatus,
   HomeBanner,
+  MerchantApplication,
   Order,
   OrderStatus,
   Product,
@@ -20,7 +22,7 @@ import type {
   StoreStatus,
   SystemSetting
 } from "@minimal-mall/types";
-import { afterSales, banners, currentCustomer, orders, products, settings, stores } from "./fixtures";
+import { afterSales, banners, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
 
 export interface DemoCustomerProfile {
   id: string;
@@ -35,6 +37,7 @@ interface DemoStateStore {
   afterSales: AfterSaleRequest[];
   banners: HomeBanner[];
   customerProfiles: DemoCustomerProfile[];
+  merchantApplications: MerchantApplication[];
   orders: Order[];
   products: Product[];
   settings: SystemSetting[];
@@ -48,6 +51,7 @@ function createDemoStateStore(): DemoStateStore {
     afterSales: cloneAfterSales(afterSales),
     banners: banners.map((banner) => ({ ...banner })),
     customerProfiles: [cloneCustomerProfile(currentCustomer)],
+    merchantApplications: cloneMerchantApplications(merchantApplications),
     orders: cloneOrders(orders),
     products: cloneProducts(products),
     settings: settings.map((setting) => ({ ...setting })),
@@ -84,6 +88,10 @@ function cloneAfterSales(value: AfterSaleRequest[]) {
   return value.map((item) => ({ ...item }));
 }
 
+function cloneMerchantApplications(value: MerchantApplication[]) {
+  return value.map((item) => ({ ...item }));
+}
+
 function cloneProducts(value: Product[]) {
   return value.map((product) => ({
     ...product,
@@ -93,6 +101,15 @@ function cloneProducts(value: Product[]) {
 
 function cloneStores(value: Store[]) {
   return value.map((store) => ({ ...store }));
+}
+
+function formatDemoTimestamp(value = new Date()) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const hour = String(value.getHours()).padStart(2, "0");
+  const minute = String(value.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}`;
 }
 
 function assertDemoStoreOwnership(store: Store, actorId?: string, message = "只能维护自己的店铺") {
@@ -161,6 +178,14 @@ export function listDemoAvailableProducts(): Product[] {
 
 export function listDemoStores(): Store[] {
   return cloneStores(getDemoStateStore().stores);
+}
+
+export function listDemoMerchantApplications(userId?: string): MerchantApplication[] {
+  return cloneMerchantApplications(
+    getDemoStateStore().merchantApplications
+      .filter((item) => !userId || item.userId === userId)
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+  );
 }
 
 export function getDemoStore(id: string): Store | undefined {
@@ -319,6 +344,58 @@ export function createDemoStore(input: {
   };
   store.stores = [...store.stores, nextStore];
   return { ...nextStore };
+}
+
+export function createDemoMerchantApplication(input: {
+  userId: string;
+  storeName: string;
+  categoryId: string;
+  description: string;
+  licenseImageUrl: string;
+}): MerchantApplication {
+  const store = getDemoStateStore();
+  if (store.merchantApplications.some((item) => item.userId === input.userId && item.status === "SUBMITTED")) {
+    throw new Error("已有待审核开店申请，请等待管理员处理");
+  }
+
+  const application: MerchantApplication = {
+    id: `apply-demo-${store.merchantApplications.length + 1}`,
+    userId: input.userId,
+    storeName: input.storeName,
+    categoryId: input.categoryId,
+    description: input.description,
+    licenseImageUrl: input.licenseImageUrl,
+    status: nextMerchantApplicationStatus("DRAFT", "submit"),
+    submittedAt: formatDemoTimestamp()
+  };
+  store.merchantApplications = [application, ...store.merchantApplications];
+  return { ...application };
+}
+
+export function updateDemoMerchantApplication(input: {
+  actorId?: string;
+  applicationId?: string;
+  action: "approve" | "reject";
+  reason?: string;
+}): MerchantApplication {
+  const store = getDemoStateStore();
+  const application = input.applicationId
+    ? store.merchantApplications.find((item) => item.id === input.applicationId)
+    : store.merchantApplications.find((item) => item.status === "SUBMITTED");
+  if (!application) throw new Error("商家申请不存在或已处理");
+  if (application.status !== "SUBMITTED") throw new Error("只有待审核申请可以处理");
+
+  application.status = nextMerchantApplicationStatus(application.status, input.action);
+  application.reviewReason = input.action === "reject" ? input.reason : undefined;
+  if (input.action === "approve") {
+    createDemoStore({
+      ownerId: application.userId,
+      categoryId: application.categoryId,
+      name: application.storeName,
+      description: application.description
+    });
+  }
+  return { ...application };
 }
 
 export function listDemoOrders(userId?: string): Order[] {
@@ -557,6 +634,7 @@ export function resetDemoState() {
   store.afterSales = cloneAfterSales(afterSales);
   store.banners = banners.map((banner) => ({ ...banner }));
   store.customerProfiles = [cloneCustomerProfile(currentCustomer)];
+  store.merchantApplications = cloneMerchantApplications(merchantApplications);
   store.orders = cloneOrders(orders);
   store.products = cloneProducts(products);
   store.settings = settings.map((setting) => ({ ...setting }));

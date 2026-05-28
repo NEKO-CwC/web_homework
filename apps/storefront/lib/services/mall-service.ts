@@ -14,6 +14,7 @@ import type { AfterSaleType, BannerStatus, OrderStatus, ProductStatus, StoreStat
 import {
   confirmDemoOrderReceive,
   createDemoAfterSale,
+  createDemoMerchantApplication,
   createDemoShipment,
   createDemoStore,
   findDemoCustomerProfileByAccount,
@@ -26,6 +27,7 @@ import {
   retryDemoOrderPayment,
   saveDemoHomeBanner,
   updateDemoAfterSale,
+  updateDemoMerchantApplication,
   updateDemoProduct,
   updateDemoProductStatus,
   updateDemoStoreProfile,
@@ -315,13 +317,16 @@ export class DemoMallWriteService implements MallWriteService {
     if (!customer || !(await assertDemoPassword(input.password, customer.passwordHash))) {
       throw new Error("账号或密码错误");
     }
+    const ownedStores = listDemoStores().filter((store) => store.ownerId === customer.id);
+    const isMerchant = ownedStores.length > 0;
     return {
-      message: "登录成功，已进入顾客前台",
+      message: isMerchant ? "登录成功，已进入商家中台" : "登录成功，已进入顾客前台",
       user: {
         id: customer.id,
-        role: "CUSTOMER",
+        role: isMerchant ? "MERCHANT" : "CUSTOMER",
         email: customer.email,
-        phone: customer.phone
+        phone: customer.phone,
+        storeIds: ownedStores.map((store) => store.id)
       }
     };
   }
@@ -424,7 +429,7 @@ export class DemoMallWriteService implements MallWriteService {
         }
       };
     }
-    nextMerchantApplicationStatus("DRAFT", "submit");
+    createDemoMerchantApplication(input);
     return { message: "开店申请已提交，状态为待审核" };
   }
 
@@ -473,7 +478,7 @@ export class DemoMallWriteService implements MallWriteService {
 
   async reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }) {
     validateMerchantReviewInput(input);
-    nextMerchantApplicationStatus("SUBMITTED", input.action);
+    updateDemoMerchantApplication(input);
     return input.action === "approve" ? "商家审核已通过，店铺已生成" : "商家申请已驳回";
   }
 

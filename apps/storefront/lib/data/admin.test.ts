@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetDemoSystemSettings, saveDemoHomeBanner, updateDemoAfterSale, updateDemoSystemSetting } from "../demo-state";
+import {
+  createDemoMerchantApplication,
+  resetDemoSystemSettings,
+  saveDemoHomeBanner,
+  updateDemoAfterSale,
+  updateDemoMerchantApplication,
+  updateDemoSystemSetting
+} from "../demo-state";
 import {
   getAdminOverview,
   listAdminAfterSales,
@@ -53,6 +60,51 @@ describe("admin data filters", () => {
     await expect(listSystemSettings()).resolves.toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "memberRegistration", value: "disabled" })
     ]));
+  });
+
+  it("returns updated demo merchant applications for admin and current user views", async () => {
+    const application = createDemoMerchantApplication({
+      userId: "user-demo-applicant",
+      storeName: "手动审核同步店",
+      categoryId: "cat-digital",
+      description: "提交后应同步出现在管理员审核队列。",
+      licenseImageUrl: "/uploads/license-manual-sync.png"
+    });
+
+    await expect(listCurrentUserMerchantApplications("user-demo-applicant")).resolves.toEqual([
+      expect.objectContaining({
+        id: application.id,
+        status: "SUBMITTED"
+      })
+    ]);
+    await expect(listMerchantApplicationsPage({
+      status: "SUBMITTED",
+      pageSize: 10
+    })).resolves.toMatchObject({
+      total: 2,
+      items: expect.arrayContaining([
+        expect.objectContaining({ id: application.id, status: "SUBMITTED" })
+      ])
+    });
+    await expect(getAdminOverview()).resolves.toMatchObject({
+      pendingMerchantCount: 2
+    });
+
+    updateDemoMerchantApplication({
+      applicationId: application.id,
+      action: "approve"
+    });
+
+    await expect(listCurrentUserMerchantApplications("user-demo-applicant")).resolves.toEqual([
+      expect.objectContaining({
+        id: application.id,
+        status: "APPROVED"
+      })
+    ]);
+    await expect(getAdminOverview()).resolves.toMatchObject({
+      storeCount: 3,
+      pendingMerchantCount: 1
+    });
   });
 
   it("returns updated demo home banners for admin overview and lists", async () => {
