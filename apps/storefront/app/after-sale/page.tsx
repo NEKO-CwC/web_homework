@@ -48,7 +48,7 @@ export default async function AfterSalePage() {
           <ActionForm action={reviewAction} submitLabel="提交评价">
             <div className="field">
               <label htmlFor="orderItemId">选择订单商品</label>
-              <select id="orderItemId" name="orderItemId" defaultValue={deliveredItems.find(({ order, item }) => order.status === "DELIVERED" && !item.reviewed)?.item.id}>
+              <select id="orderItemId" name="orderItemId" defaultValue={deliveredItems.find(({ order, item }) => order.status === "DELIVERED" && !item.reviewed)?.item.id} required data-required-message="请选择订单">
                 {deliveredItems.map(({ order, item, product }) => (
                   <option key={item.id} value={item.id} disabled={item.reviewed || order.status !== "DELIVERED"}>
                     {order.orderNo} · {product?.name ?? "商品"} · {formatOrderStatus(order.status)}{item.reviewed ? " · 已评价" : ""}
@@ -58,7 +58,7 @@ export default async function AfterSalePage() {
             </div>
             <div className="field">
               <label htmlFor="rating">评分</label>
-              <select id="rating" name="rating" defaultValue="5">
+              <select id="rating" name="rating" defaultValue="5" required data-required-message="请选择评分">
                 <option value="5">5 分</option>
                 <option value="4">4 分</option>
                 <option value="3">3 分</option>
@@ -66,7 +66,7 @@ export default async function AfterSalePage() {
             </div>
             <div className="field">
               <label htmlFor="content">评价内容</label>
-              <textarea id="content" name="content" defaultValue="配送很快，商品质感符合预期。" />
+              <textarea id="content" name="content" defaultValue="配送很快，商品质感符合预期。" required minLength={4} data-required-message="评价内容至少 4 个字" data-min-length-message="评价内容至少 4 个字" />
             </div>
           </ActionForm>
         </Card>
@@ -79,7 +79,7 @@ export default async function AfterSalePage() {
           <ActionForm action={afterSaleAction} submitLabel="发起售后" variant="danger">
             <div className="field">
               <label htmlFor="afterOrderItemId">选择订单商品</label>
-              <select id="afterOrderItemId" name="orderItemId" defaultValue={defaultAfterSaleItemId}>
+              <select id="afterOrderItemId" name="orderItemId" defaultValue={defaultAfterSaleItemId} required data-required-message="请选择订单商品">
                 {afterSaleItems.map(({ order, item, product, canSubmit }) => (
                   <option key={item.id} value={item.id} disabled={!canSubmit}>
                     {order.orderNo} · {product?.name ?? "商品"}{canSubmit ? "" : " · 暂不可申请"}
@@ -89,7 +89,7 @@ export default async function AfterSalePage() {
             </div>
             <div className="field">
               <label htmlFor="type">售后类型</label>
-              <select id="type" name="type" defaultValue="EXCHANGE">
+              <select id="type" name="type" defaultValue="EXCHANGE" required data-required-message="请选择售后类型">
                 <option value="REFUND">仅退款</option>
                 <option value="RETURN_REFUND">退货退款</option>
                 <option value="EXCHANGE">换货</option>
@@ -97,11 +97,11 @@ export default async function AfterSalePage() {
             </div>
             <div className="field">
               <label htmlFor="reason">原因</label>
-              <input id="reason" name="reason" defaultValue="颜色与预期不符" />
+              <input id="reason" name="reason" defaultValue="颜色与预期不符" required minLength={2} data-required-message="请选择或填写原因" data-min-length-message="请选择或填写原因" />
             </div>
             <div className="field">
               <label htmlFor="description">说明</label>
-              <textarea id="description" name="description" defaultValue="希望换成黑色款，包装和吊牌完整。" />
+              <textarea id="description" name="description" defaultValue="希望换成黑色款，包装和吊牌完整。" required minLength={4} data-required-message="说明至少 4 个字" data-min-length-message="说明至少 4 个字" />
             </div>
             <ImageUploadField
               id="evidenceUrl"

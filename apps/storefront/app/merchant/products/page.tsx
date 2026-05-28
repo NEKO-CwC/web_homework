@@ -61,19 +61,19 @@ export default async function MerchantProductsPage({
             <input type="hidden" name="storeId" value={store.id} />
             <div className="field">
               <label htmlFor="name">商品名称</label>
-              <input id="name" name="name" defaultValue="空气感智能台灯" />
+              <input id="name" name="name" defaultValue="空气感智能台灯" required minLength={2} data-required-message="商品名称至少 2 个字" data-min-length-message="商品名称至少 2 个字" />
             </div>
             <div className="field">
               <label htmlFor="price">价格（元）</label>
-              <input id="price" name="price" defaultValue="329" />
+              <input id="price" name="price" type="number" min="0.01" step="0.01" defaultValue="329" required data-required-message="价格必须大于 0" data-min-message="价格必须大于 0" data-number-message="请输入有效价格" />
             </div>
             <div className="field">
               <label htmlFor="stock">库存</label>
-              <input id="stock" name="stock" defaultValue="128" />
+              <input id="stock" name="stock" type="number" min="0" step="1" defaultValue="128" required data-required-message="库存必须是非负整数" data-min-message="库存不能小于 0" data-number-message="库存必须是整数" />
             </div>
             <div className="field">
               <label htmlFor="category">类目</label>
-              <select id="category" name="categoryId" defaultValue="cat-digital">
+              <select id="category" name="categoryId" defaultValue="cat-digital" required data-required-message="请选择商品类目">
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
@@ -88,7 +88,7 @@ export default async function MerchantProductsPage({
             />
             <div className="field">
               <label htmlFor="description">商品介绍</label>
-              <textarea id="description" name="description" defaultValue="低眩光面板、三档色温、隐藏式转轴，适合学习办公桌面。" />
+              <textarea id="description" name="description" defaultValue="低眩光面板、三档色温、隐藏式转轴，适合学习办公桌面。" required minLength={8} data-required-message="商品介绍至少 8 个字" data-min-length-message="商品介绍至少 8 个字" />
             </div>
           </ActionForm>
         </Card>
@@ -99,11 +99,11 @@ export default async function MerchantProductsPage({
             <input type="hidden" name="storeId" value={store.id} />
             <div className="field">
               <label htmlFor="storeName">店铺名称</label>
-              <input id="storeName" name="name" defaultValue={store.name} />
+              <input id="storeName" name="name" defaultValue={store.name} required minLength={2} data-required-message="店铺名称至少 2 个字" data-min-length-message="店铺名称至少 2 个字" />
             </div>
             <div className="field">
               <label htmlFor="storeCategory">经营类目</label>
-              <select id="storeCategory" name="categoryId" defaultValue={store.categoryId}>
+              <select id="storeCategory" name="categoryId" defaultValue={store.categoryId} required data-required-message="请选择经营类目">
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
@@ -111,7 +111,7 @@ export default async function MerchantProductsPage({
             </div>
             <div className="field">
               <label htmlFor="storeDescription">店铺介绍</label>
-              <textarea id="storeDescription" name="description" defaultValue={store.description} />
+              <textarea id="storeDescription" name="description" defaultValue={store.description} required minLength={8} data-required-message="店铺介绍至少 8 个字" data-min-length-message="店铺介绍至少 8 个字" />
             </div>
           </ActionForm>
           <div className="form-feedback success">当前店铺正常经营，可发布新商品。</div>
@@ -193,19 +193,19 @@ export default async function MerchantProductsPage({
               <input type="hidden" name="storeId" value={store.id} />
               <div className="field">
                 <label htmlFor={`name-${product.id}`}>商品名称</label>
-                <input id={`name-${product.id}`} name="name" defaultValue={product.name} />
+                <input id={`name-${product.id}`} name="name" defaultValue={product.name} required minLength={2} data-required-message="商品名称至少 2 个字" data-min-length-message="商品名称至少 2 个字" />
               </div>
               <div className="field">
                 <label htmlFor={`price-${product.id}`}>价格（元）</label>
-                <input id={`price-${product.id}`} name="price" defaultValue={String(product.priceCents / 100)} />
+                <input id={`price-${product.id}`} name="price" type="number" min="0.01" step="0.01" defaultValue={String(product.priceCents / 100)} required data-required-message="价格必须大于 0" data-min-message="价格必须大于 0" data-number-message="请输入有效价格" />
               </div>
               <div className="field">
                 <label htmlFor={`stock-${product.id}`}>库存</label>
-                <input id={`stock-${product.id}`} name="stock" defaultValue={String(product.stock)} />
+                <input id={`stock-${product.id}`} name="stock" type="number" min="0" step="1" defaultValue={String(product.stock)} required data-required-message="库存必须是非负整数" data-min-message="库存不能小于 0" data-number-message="库存必须是整数" />
               </div>
               <div className="field">
                 <label htmlFor={`category-${product.id}`}>类目</label>
-                <select id={`category-${product.id}`} name="categoryId" defaultValue={product.categoryId}>
+                <select id={`category-${product.id}`} name="categoryId" defaultValue={product.categoryId} required data-required-message="请选择商品类目">
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
@@ -220,7 +220,7 @@ export default async function MerchantProductsPage({
               />
               <div className="field">
                 <label htmlFor={`description-${product.id}`}>商品介绍</label>
-                <textarea id={`description-${product.id}`} name="description" defaultValue={product.description} />
+                <textarea id={`description-${product.id}`} name="description" defaultValue={product.description} required minLength={8} data-required-message="商品介绍至少 8 个字" data-min-length-message="商品介绍至少 8 个字" />
               </div>
               <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>当前售价 {formatMoney(product.priceCents)}</p>
             </ActionForm>

@@ -34,11 +34,11 @@ export default async function MerchantApplyPage() {
           <ActionForm action={merchantApplyAction} submitLabel="提交审核">
             <div className="field">
               <label htmlFor="storeName">店铺名称</label>
-              <input id="storeName" name="storeName" defaultValue="潮流配件仓" />
+              <input id="storeName" name="storeName" defaultValue="潮流配件仓" required minLength={2} data-required-message="店铺名称至少 2 个字" data-min-length-message="店铺名称至少 2 个字" />
             </div>
             <div className="field">
               <label htmlFor="categoryId">经营类目</label>
-              <select id="categoryId" name="categoryId" defaultValue="cat-fashion">
+              <select id="categoryId" name="categoryId" defaultValue="cat-fashion" required data-required-message="请选择经营类目">
                 {categories.map((category) => (
                   <option value={category.id} key={category.id}>{category.name}</option>
                 ))}
@@ -46,7 +46,7 @@ export default async function MerchantApplyPage() {
             </div>
             <div className="field">
               <label htmlFor="description">店铺介绍</label>
-              <textarea id="description" name="description" defaultValue="主营通勤配件、卡包与旅行小物，提供稳定售后。" />
+              <textarea id="description" name="description" defaultValue="主营通勤配件、卡包与旅行小物，提供稳定售后。" required minLength={8} data-required-message="店铺介绍至少 8 个字" data-min-length-message="店铺介绍至少 8 个字" />
             </div>
             <ImageUploadField
               id="licenseImageUrl"

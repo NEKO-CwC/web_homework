@@ -57,19 +57,19 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
             ) : null}
             <div className="field">
               <label htmlFor="receiver">收货人</label>
-              <input id="receiver" name="receiver" defaultValue={currentCustomer.nickname} />
+              <input id="receiver" name="receiver" defaultValue={currentCustomer.nickname} required data-required-message="请输入收货人" />
             </div>
             <div className="field">
               <label htmlFor="phone">联系电话</label>
-              <input id="phone" name="phone" defaultValue={currentCustomer.phone} />
+              <input id="phone" name="phone" defaultValue={currentCustomer.phone} required minLength={6} data-required-message="请输入联系电话" data-min-length-message="请输入联系电话" />
             </div>
             <div className="field">
               <label htmlFor="address">默认地址</label>
-              <textarea id="address" name="address" defaultValue={currentCustomer.defaultAddress} />
+              <textarea id="address" name="address" defaultValue={currentCustomer.defaultAddress} required minLength={8} data-required-message="请输入完整收货地址" data-min-length-message="请输入完整收货地址" />
             </div>
             <div className="field">
               <label htmlFor="paymentMethod">虚拟支付方式</label>
-              <select id="paymentMethod" name="paymentMethod" defaultValue="balance">
+              <select id="paymentMethod" name="paymentMethod" defaultValue="balance" required data-required-message="请选择虚拟支付方式">
                 <option value="balance">虚拟余额</option>
                 <option value="card">课程演示卡</option>
                 <option value="fail">模拟支付失败</option>

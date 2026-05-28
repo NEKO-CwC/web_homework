@@ -341,11 +341,12 @@ test("checkout shows field-level validation errors", async ({ page }) => {
   await checkoutForm.getByLabel("联系电话").fill("");
   await checkoutForm.getByLabel("默认地址").fill("短");
   await checkoutForm.getByRole("button", { name: "确认虚拟支付" }).click();
-  await expect(checkoutForm.getByText("结算校验失败")).toBeVisible();
+  await expect(checkoutForm.getByText("表单校验失败")).toBeVisible();
   await expect(checkoutForm.getByText("请输入收货人")).toBeVisible();
   await expect(checkoutForm.getByText("请输入联系电话")).toBeVisible();
   await expect(checkoutForm.getByText("请输入完整收货地址")).toBeVisible();
   await expect(checkoutForm.getByLabel("收货人")).toHaveAttribute("aria-invalid", "true");
+  await expect(checkoutForm.getByLabel("默认地址")).toHaveValue("短");
 });
 
 test("customer can immediately buy from the product detail page", async ({ page }) => {
