@@ -105,6 +105,38 @@ function validateAfterSaleInput(input: AfterSaleInput) {
   if (input.description.trim().length < 4) throw new Error("说明至少 4 个字");
 }
 
+function validateShipmentInput(input: { orderNo: string; status: OrderStatus }) {
+  if (!input.orderNo.trim()) throw new Error("缺少订单号");
+  if (input.status !== "TO_SHIP") throw new Error("只有待发货订单可以生成运单");
+}
+
+function validateAfterSaleDecisionInput(input: { action: string; reply: string }) {
+  if (!["approve", "reject"].includes(input.action)) throw new Error("售后处理动作不合法");
+  if (!input.reply.trim()) throw new Error("请填写处理说明");
+}
+
+function validateMerchantReviewInput(input: { action: string; reason?: string }) {
+  if (!["approve", "reject"].includes(input.action)) throw new Error("商家审核动作不合法");
+  if (input.action === "reject" && !input.reason?.trim()) throw new Error("驳回必须填写原因");
+}
+
+function validateHomeBannerInput(input: HomeBannerInput) {
+  if (input.title.trim().length < 2) throw new Error("Banner 标题不能为空");
+  if (!input.imageUrl.trim()) throw new Error("请提供 Banner 图片");
+  if (!input.linkUrl.trim()) throw new Error("请提供跳转链接");
+  if (!["ONLINE", "OFFLINE"].includes(input.status)) throw new Error("Banner 状态不合法");
+}
+
+function validateSystemSettingInput(input: { key: string; value?: string }) {
+  if (!input.key.trim()) throw new Error("缺少配置项");
+  if (input.key === "memberRegistration" && input.value && !["enabled", "disabled"].includes(input.value)) {
+    throw new Error("会员注册配置值不合法");
+  }
+  if (input.key === "merchantManualReview" && input.value && !["required", "auto"].includes(input.value)) {
+    throw new Error("商家入驻审核配置值不合法");
+  }
+}
+
 export interface CheckoutInput {
   userId?: string;
   receiver: string;
@@ -409,31 +441,33 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
+    validateShipmentInput(input);
     const trackingNo = makeVirtualTrackingNo(input.orderNo);
     createDemoShipment({ orderNo: input.orderNo, status: input.status, storeId: input.storeId, trackingNo });
     return { message: `虚拟运单已生成：${trackingNo}`, trackingNo };
   }
 
   async handleAfterSale(input: { actorId?: string; afterSaleId?: string; action: "approve" | "reject"; reply: string }) {
+    validateAfterSaleDecisionInput(input);
     updateDemoAfterSale(input);
     return input.action === "approve" ? "售后已通过并记录审计日志" : "售后已驳回并记录审计日志";
   }
 
   async reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }) {
-    if (input.action === "reject" && !input.reason) {
-      throw new Error("驳回必须填写原因");
-    }
+    validateMerchantReviewInput(input);
     nextMerchantApplicationStatus("SUBMITTED", input.action);
     return input.action === "approve" ? "商家审核已通过，店铺已生成" : "商家申请已驳回";
   }
 
   async saveHomeBanner(input: HomeBannerInput) {
+    validateHomeBannerInput(input);
     void input.actorId;
     saveDemoHomeBanner(input);
     return "首页配置已保存，顾客首页展示已更新";
   }
 
   async updateSystemSetting(input: { actorId?: string; key: string; value?: string }) {
+    validateSystemSettingInput(input);
     const setting = getDemoSystemSetting(input.key);
     if (!setting) throw new Error("系统配置项不存在");
     updateDemoSystemSetting(input.key, nextSystemSettingValue(input.key, setting.value, input.value));
@@ -468,8 +502,8 @@ function nextSystemSettingValue(key: string, currentValue: string, requestedValu
   if (requestedValue) return requestedValue;
   if (currentValue === "enabled") return "disabled";
   if (currentValue === "disabled") return "enabled";
-  if (currentValue === "required") return "optional";
-  if (currentValue === "optional") return "required";
+  if (currentValue === "required") return "auto";
+  if (currentValue === "auto") return "required";
   return currentValue;
 }
 
@@ -1161,6 +1195,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
+    validateShipmentInput(input);
     const db = await this.getDb();
     const order = await db.order.findUnique({
       where: { orderNo: input.orderNo },
@@ -1233,6 +1268,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async handleAfterSale(input: { actorId?: string; afterSaleId?: string; action: "approve" | "reject"; reply: string }) {
+    validateAfterSaleDecisionInput(input);
     const db = await this.getDb();
     const request = input.afterSaleId
       ? await db.afterSaleRequest.findUnique({
@@ -1292,10 +1328,8 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }) {
+    validateMerchantReviewInput(input);
     const db = await this.getDb();
-    if (input.action === "reject" && !input.reason) {
-      throw new Error("驳回必须填写原因");
-    }
     const application = input.applicationId
       ? await db.merchantApplication.findUnique({ where: { id: input.applicationId } })
       : await db.merchantApplication.findFirst({ where: { status: "SUBMITTED" } });
@@ -1349,6 +1383,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async saveHomeBanner(input: HomeBannerInput) {
+    validateHomeBannerInput(input);
     const db = await this.getDb();
     if (!input.actorId) throw new Error("只有管理员可以保存首页配置");
     const targetId = input.id ?? "new";
@@ -1393,6 +1428,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async updateSystemSetting(input: { actorId?: string; key: string; value?: string }) {
+    validateSystemSettingInput(input);
     const db = await this.getDb();
     const setting = await db.systemSetting.findUnique({ where: { key: input.key } });
     if (!setting) throw new Error("系统配置项不存在");

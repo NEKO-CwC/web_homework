@@ -545,6 +545,24 @@ describe("DemoMallWriteService", () => {
       orderNo: "",
       paymentMethod: "balance"
     })).rejects.toThrow("缺少订单号");
+    await expect(service.createShipment({
+      orderNo: "",
+      status: "TO_SHIP"
+    })).rejects.toThrow("缺少订单号");
+    await expect(service.handleAfterSale({
+      action: "approve",
+      reply: ""
+    })).rejects.toThrow("请填写处理说明");
+    await expect(service.saveHomeBanner({
+      title: "首",
+      imageUrl: "/banners/desk-refresh.jpg",
+      linkUrl: "/",
+      status: "ONLINE"
+    })).rejects.toThrow("Banner 标题不能为空");
+    await expect(service.updateSystemSetting({
+      key: "memberRegistration",
+      value: "paused"
+    })).rejects.toThrow("会员注册配置值不合法");
     await expect(service.submitReview({
       orderItemId: "item-2",
       rating: 6,
@@ -1543,6 +1561,26 @@ describe("PrismaMallWriteService", () => {
     expect(db.shipment.create).not.toHaveBeenCalled();
   });
 
+  it("validates prisma shipment and after-sale handling payloads before database reads", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.createShipment({
+      actorId: "merchant-1",
+      orderNo: "",
+      status: "TO_SHIP"
+    })).rejects.toThrow("缺少订单号");
+    expect(db.order.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.handleAfterSale({
+      actorId: "merchant-1",
+      afterSaleId: "after-1",
+      action: "approve",
+      reply: ""
+    })).rejects.toThrow("请填写处理说明");
+    expect(db.afterSaleRequest.findUnique).not.toHaveBeenCalled();
+  });
+
   it("creates an after-sale request with optional evidence", async () => {
     const db = createMockDb();
     db.orderItem.findUnique.mockResolvedValue({
@@ -1804,6 +1842,13 @@ describe("PrismaMallWriteService", () => {
     })).rejects.toThrow("店铺介绍至少 8 个字");
     expect(db.store.findFirst).not.toHaveBeenCalled();
     expect(db.merchantApplication.create).not.toHaveBeenCalled();
+
+    await expect(service.reviewMerchantApplication({
+      actorId: "admin-1",
+      applicationId: "apply-1",
+      action: "pause" as never
+    })).rejects.toThrow("商家审核动作不合法");
+    expect(db.merchantApplication.findUnique).not.toHaveBeenCalled();
   });
 
   it("rejects merchant applications from users that already own a store", async () => {
@@ -1863,6 +1908,29 @@ describe("PrismaMallWriteService", () => {
       linkUrl: "/",
       status: "ONLINE"
     })).rejects.toThrow("只有管理员可以保存首页配置");
+  });
+
+  it("validates prisma home and system setting payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.saveHomeBanner({
+      actorId: "admin-1",
+      title: "首",
+      imageUrl: "/banners/desk-refresh.jpg",
+      linkUrl: "/",
+      status: "ONLINE"
+    })).rejects.toThrow("Banner 标题不能为空");
+    expect(db.homeBanner.create).not.toHaveBeenCalled();
+    expect(db.auditLog.create).not.toHaveBeenCalled();
+
+    await expect(service.updateSystemSetting({
+      actorId: "admin-1",
+      key: "merchantManualReview",
+      value: "optional"
+    })).rejects.toThrow("商家入驻审核配置值不合法");
+    expect(db.systemSetting.findUnique).not.toHaveBeenCalled();
+    expect(db.systemSetting.update).not.toHaveBeenCalled();
   });
 
   it("updates an explicit system setting value and audits the change", async () => {
