@@ -6,7 +6,8 @@ import {
   formatMoney,
   formatOrderStatus,
   formatProductStatus,
-  makeVirtualTrackingNo
+  makeVirtualTrackingNo,
+  visibleReviewCount
 } from "./format";
 
 describe("format helpers", () => {
@@ -34,5 +35,10 @@ describe("format helpers", () => {
   it("generates stable virtual waybill numbers", () => {
     expect(makeVirtualTrackingNo("MO20260528001")).toMatch(/^VL-\d{4}-\d{4}$/);
     expect(makeVirtualTrackingNo("MO20260528001")).toBe(makeVirtualTrackingNo("MO20260528001"));
+  });
+
+  it("uses one review-count source instead of double-counting listed reviews", () => {
+    expect(visibleReviewCount(2, 2)).toBe(2);
+    expect(visibleReviewCount(86, 1)).toBe(86);
   });
 });

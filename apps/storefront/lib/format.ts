@@ -13,6 +13,10 @@ export function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
+export function visibleReviewCount(summaryCount: number, listedCount: number) {
+  return Math.max(summaryCount, listedCount);
+}
+
 export function formatOrderStatus(status: OrderStatus) {
   const labels: Record<OrderStatus, string> = {
     PENDING_PAYMENT: "待支付",

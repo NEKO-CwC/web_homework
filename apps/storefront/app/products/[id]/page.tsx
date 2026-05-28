@@ -5,7 +5,7 @@ import { ShoppingBag, Star } from "lucide-react";
 import { Card, StatusBadge } from "@minimal-mall/ui";
 import { AddCartForm } from "@/app/components/AddCartForm";
 import { findProductDetail } from "@/lib/data";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, visibleReviewCount } from "@/lib/format";
 
 export function generateStaticParams() {
   return [
@@ -63,7 +63,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             <div className="price" style={{ fontSize: 34, margin: "20px 0" }}>{formatMoney(product.priceCents)}</div>
             <div className="top-actions" style={{ marginBottom: 18 }}>
               <Star size={18} fill="currentColor" />
-              <span>{product.rating} 分 · {product.reviewCount + productReviews.length} 条评价</span>
+              <span>{product.rating} 分 · {visibleReviewCount(product.reviewCount, productReviews.length)} 条评价</span>
             </div>
             {canBuy ? (
               <div className="top-actions">
