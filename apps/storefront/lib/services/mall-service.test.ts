@@ -1629,4 +1629,32 @@ describe("PrismaMallWriteService", () => {
       })
     }));
   });
+
+  it("increments home cache version even when the form submits the current value", async () => {
+    const db = createMockDb();
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "homeCacheVersion",
+      value: "7"
+    });
+    db.systemSetting.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.updateSystemSetting({
+      actorId: "admin-1",
+      key: "homeCacheVersion",
+      value: "7"
+    })).resolves.toContain("系统配置已更新");
+
+    expect(db.systemSetting.update).toHaveBeenCalledWith({
+      where: { key: "homeCacheVersion" },
+      data: { value: "8" }
+    });
+    expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        targetId: "homeCacheVersion",
+        metadata: { from: "7", to: "8" }
+      })
+    }));
+  });
 });

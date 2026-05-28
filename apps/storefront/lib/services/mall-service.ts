@@ -367,11 +367,11 @@ function makeBusinessNo(prefix: "MO" | "PAY") {
 }
 
 function nextSystemSettingValue(key: string, currentValue: string, requestedValue?: string) {
-  if (requestedValue) return requestedValue;
   if (key === "homeCacheVersion") {
     const parsed = Number.parseInt(currentValue, 10);
     return String(Number.isFinite(parsed) ? parsed + 1 : 1);
   }
+  if (requestedValue) return requestedValue;
   if (currentValue === "enabled") return "disabled";
   if (currentValue === "disabled") return "enabled";
   if (currentValue === "required") return "optional";
