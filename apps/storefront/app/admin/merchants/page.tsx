@@ -101,7 +101,9 @@ export default async function AdminMerchantsPage({
                       </ActionForm>
                     </div>
                   ) : (
-                    <button className="ui-button ui-button--secondary" type="button">查看</button>
+                    <span style={{ color: "var(--muted)" }}>
+                      {item.status === "REJECTED" && item.reviewReason ? `驳回原因：${item.reviewReason}` : "申请已归档"}
+                    </span>
                   )}
                 </td>
               </tr>

@@ -342,7 +342,7 @@ describe("DemoMallWriteService", () => {
       actorId: "admin-1",
       storeId: "store-minimal",
       status: "ACTIVE"
-    })).resolves.toContain("店铺已恢复经营");
+    })).resolves.toContain("店铺复核完成");
     await expect(service.handleAfterSale({
       action: "reject",
       reply: "不符合售后条件"
@@ -1226,6 +1226,28 @@ describe("PrismaMallWriteService", () => {
     });
     expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: "STORE_FREEZE" })
+    }));
+
+    db.store.findUnique.mockResolvedValue({
+      id: "store-minimal",
+      ownerId: "merchant-1",
+      status: "FROZEN"
+    });
+    db.store.update.mockClear();
+    db.product.updateMany.mockClear();
+    db.auditLog.create.mockClear();
+    await expect(service.updateStoreStatus({
+      actorId: "admin-1",
+      storeId: "store-minimal",
+      status: "FROZEN"
+    })).resolves.toContain("店铺复核完成");
+    expect(db.store.update).not.toHaveBeenCalled();
+    expect(db.product.updateMany).not.toHaveBeenCalled();
+    expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "STORE_REVIEW",
+        metadata: { status: "FROZEN", reviewedOnly: true }
+      })
     }));
 
     await expect(service.updateStoreStatus({

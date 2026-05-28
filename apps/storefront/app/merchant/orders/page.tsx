@@ -105,7 +105,9 @@ export default async function MerchantOrdersPage({
                         <input type="hidden" name="status" value={order.status} />
                       </ActionForm>
                     ) : (
-                      <button className="ui-button ui-button--secondary" type="button">查看</button>
+                      <span style={{ color: "var(--muted)" }}>
+                        {order.shipment?.trackingNo ? "已生成运单" : "当前状态无需发货"}
+                      </span>
                     )}
                   </td>
                 </tr>

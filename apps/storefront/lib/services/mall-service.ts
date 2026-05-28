@@ -330,6 +330,8 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async updateStoreStatus(input: { actorId?: string; storeId: string; status: StoreStatus }) {
+    const current = listDemoStores().find((store) => store.id === input.storeId);
+    if (current?.status === input.status) return "店铺复核完成，状态未变化";
     updateDemoStoreStatus(input);
     return input.status === "FROZEN" ? "店铺已冻结" : "店铺已恢复经营";
   }
@@ -1049,13 +1051,16 @@ export class PrismaMallWriteService implements MallWriteService {
     const db = await this.getDb();
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法修改状态");
+    const isReviewOnly = store.status === input.status;
 
     await db.$transaction(async (tx) => {
-      await tx.store.update({
-        where: { id: input.storeId },
-        data: { status: input.status }
-      });
-      if (input.status === "FROZEN") {
+      if (!isReviewOnly) {
+        await tx.store.update({
+          where: { id: input.storeId },
+          data: { status: input.status }
+        });
+      }
+      if (!isReviewOnly && input.status === "FROZEN") {
         await tx.product.updateMany({
           where: { storeId: input.storeId, status: "ACTIVE" },
           data: { status: "OFF_SHELF" }
@@ -1064,15 +1069,16 @@ export class PrismaMallWriteService implements MallWriteService {
       await tx.auditLog.create({
         data: {
           actorId: input.actorId,
-          action: input.status === "FROZEN" ? "STORE_FREEZE" : "STORE_ACTIVATE",
+          action: isReviewOnly ? "STORE_REVIEW" : input.status === "FROZEN" ? "STORE_FREEZE" : "STORE_ACTIVATE",
           targetType: "Store",
           targetId: input.storeId,
-          metadata: { status: input.status },
+          metadata: { status: input.status, reviewedOnly: isReviewOnly },
           result: "SUCCESS",
           ipAddress: "127.0.0.1"
         }
       });
     });
+    if (isReviewOnly) return "店铺复核完成，状态未变化";
     return input.status === "FROZEN" ? "店铺已冻结" : "店铺已恢复经营";
   }
 
