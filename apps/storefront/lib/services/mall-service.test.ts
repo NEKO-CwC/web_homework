@@ -127,6 +127,7 @@ describe("DemoMallWriteService", () => {
     })).resolves.toContain("待发货");
 
     await expect(service.confirmReceive({
+      userId: "user-customer-1",
       orderNo: "MO20260527008",
       status: "SHIPPED"
     })).resolves.toContain("已确认收货");
@@ -466,6 +467,11 @@ describe("DemoMallWriteService", () => {
       orderNo: "MO20260528001",
       status: "TO_SHIP"
     })).rejects.toThrow("只有运输中订单可以确认收货");
+    await expect(service.confirmReceive({
+      userId: "other-customer",
+      orderNo: "MO20260527009",
+      status: "SHIPPED"
+    })).rejects.toThrow("只能确认自己的订单");
   });
 });
 
@@ -978,6 +984,51 @@ describe("PrismaMallWriteService", () => {
     });
     await expect(service.retryPayment(retryInput)).rejects.toThrow("库存不足");
     expect(db.order.update).not.toHaveBeenCalled();
+  });
+
+  it("confirms receipt only for the owning customer", async () => {
+    const db = createMockDb();
+    db.order.findUnique.mockResolvedValue({
+      id: "order-ship",
+      userId: "user-customer-1",
+      orderNo: "MO20260527008",
+      status: "SHIPPED"
+    });
+    db.order.update.mockResolvedValue({});
+    db.orderItem.updateMany.mockResolvedValue({});
+    db.shipment.updateMany.mockResolvedValue({});
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.confirmReceive({
+      userId: "user-customer-1",
+      orderNo: "MO20260527008",
+      status: "SHIPPED"
+    })).resolves.toContain("已确认收货");
+
+    expect(db.order.update).toHaveBeenCalledWith({
+      where: { orderNo: "MO20260527008" },
+      data: { status: "DELIVERED" }
+    });
+    expect(db.orderItem.updateMany).toHaveBeenCalledWith({
+      where: { orderId: "order-ship" },
+      data: { status: "DELIVERED" }
+    });
+    expect(db.shipment.updateMany).toHaveBeenCalledWith({
+      where: { orderId: "order-ship" },
+      data: { status: "DELIVERED" }
+    });
+
+    db.order.findUnique.mockResolvedValue({
+      id: "order-other",
+      userId: "other-customer",
+      orderNo: "MO20260527009",
+      status: "SHIPPED"
+    });
+    await expect(service.confirmReceive({
+      userId: "user-customer-1",
+      orderNo: "MO20260527009",
+      status: "SHIPPED"
+    })).rejects.toThrow("只能确认自己的订单");
   });
 
   it("saves a merchant store profile only for its owner", async () => {

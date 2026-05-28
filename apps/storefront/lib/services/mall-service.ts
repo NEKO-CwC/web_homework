@@ -130,7 +130,7 @@ export interface MallWriteService {
   removeCartItem(input: { userId?: string; cartItemId: string }): Promise<string>;
   checkout(input: CheckoutInput): Promise<string>;
   retryPayment(input: { userId?: string; orderNo: string; paymentMethod: string }): Promise<string>;
-  confirmReceive(input: { orderNo: string; status: OrderStatus }): Promise<string>;
+  confirmReceive(input: { userId?: string; orderNo: string; status: OrderStatus }): Promise<string>;
   submitReview(input: ReviewInput): Promise<string>;
   createAfterSale(input: AfterSaleInput): Promise<string>;
   submitMerchantApplication(input: MerchantApplicationInput): Promise<string>;
@@ -264,7 +264,7 @@ export class DemoMallWriteService implements MallWriteService {
     return `虚拟支付成功，订单 ${input.orderNo} 已进入待发货`;
   }
 
-  async confirmReceive(input: { orderNo: string; status: OrderStatus }) {
+  async confirmReceive(input: { userId?: string; orderNo: string; status: OrderStatus }) {
     confirmDemoOrderReceive(input);
     return `订单 ${input.orderNo} 已确认收货，可提交评价`;
   }
@@ -738,11 +738,13 @@ export class PrismaMallWriteService implements MallWriteService {
     return `虚拟支付成功，订单 ${updatedOrder.orderNo} 已进入待发货`;
   }
 
-  async confirmReceive(input: { orderNo: string; status: OrderStatus }) {
+  async confirmReceive(input: { userId?: string; orderNo: string; status: OrderStatus }) {
     const db = await this.getDb();
+    const userId = activeUserId(input.userId);
     const nextStatus = nextOrderStatusAfterReceive(input.status);
     const order = await db.order.findUnique({ where: { orderNo: input.orderNo } });
     if (!order) throw new Error("订单不存在，无法确认收货");
+    if (order.userId !== userId) throw new Error("只能确认自己的订单");
     if (order.status !== input.status) throw new Error("订单状态已变化，请刷新后重试");
 
     await db.$transaction([

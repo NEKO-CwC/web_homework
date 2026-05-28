@@ -313,9 +313,10 @@ export function retryDemoOrderPayment(orderNo: string): Order {
   return cloneOrders([order])[0];
 }
 
-export function confirmDemoOrderReceive(input: { orderNo: string; status: OrderStatus }): Order {
+export function confirmDemoOrderReceive(input: { userId?: string; orderNo: string; status: OrderStatus }): Order {
   const order = getDemoStateStore().orders.find((item) => item.orderNo === input.orderNo);
   if (!order) throw new Error("订单不存在，无法确认收货");
+  if (input.userId && order.userId !== input.userId) throw new Error("只能确认自己的订单");
   if (order.status !== input.status) throw new Error("订单状态已变化，请刷新后重试");
   const nextStatus = nextOrderStatusAfterReceive(input.status);
   order.status = nextStatus;

@@ -288,9 +288,17 @@ export async function confirmReceiveAction(_: ActionState, formData: FormData) {
   const orderNo = formValue(formData, "orderNo");
   const status = parseOrderStatus(formValue(formData, "status"));
   if (!status || !canConfirmReceive(status)) return fail("只有运输中订单可以确认收货");
-  const message = await getMallWriteService().confirmReceive({ orderNo, status });
-  revalidatePaths(["/orders", "/after-sale", "/merchant/orders"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().confirmReceive({
+      userId: await requireActorId("customer"),
+      orderNo,
+      status
+    });
+    revalidatePaths(["/orders", "/after-sale", "/merchant/orders"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "确认收货失败");
+  }
 }
 
 export async function reviewAction(_: ActionState, formData: FormData) {
