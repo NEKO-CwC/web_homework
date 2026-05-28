@@ -30,7 +30,7 @@ import {
   updateDemoStoreStatus,
   updateDemoSystemSetting
 } from "../demo-state";
-import { makeVirtualTrackingNo } from "../format";
+import { checkoutTotalCents, makeVirtualTrackingNo } from "../format";
 
 const DEFAULT_CUSTOMER_ID = "user-customer-1";
 const DEFAULT_MERCHANT_ID = "merchant-1";
@@ -639,13 +639,14 @@ export class PrismaMallWriteService implements MallWriteService {
         (sum, line) => sum + line.product.priceCents * line.quantity,
         0
       );
+      const payableAmountCents = checkoutTotalCents(totalAmountCents);
 
       const order = await tx.order.create({
         data: {
           userId,
           orderNo,
           status: nextStatus,
-          totalAmountCents,
+          totalAmountCents: payableAmountCents,
           addressSnapshot: `${input.receiver}，${input.phone}，${input.address}`,
           items: {
             create: checkoutItems.map((line) => ({
@@ -660,7 +661,7 @@ export class PrismaMallWriteService implements MallWriteService {
             create: {
               paymentNo,
               method: input.paymentMethod,
-              amountCents: totalAmountCents,
+              amountCents: payableAmountCents,
               status: paymentSucceeded ? "SUCCESS" : "FAILED"
             }
           }

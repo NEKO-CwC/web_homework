@@ -752,10 +752,12 @@ describe("PrismaMallWriteService", () => {
 
     expect(db.order.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        totalAmountCents: 65800,
+        totalAmountCents: 61800,
         status: "TO_SHIP"
       })
     }));
+    const createArg = db.order.create.mock.calls[0]?.[0];
+    expect(createArg.data.payments.create.amountCents).toBe(61800);
     expect(db.product.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "prod-lamp" },
       data: { stock: { decrement: 2 } }
@@ -841,7 +843,8 @@ describe("PrismaMallWriteService", () => {
     })).resolves.toContain("待发货");
 
     const createArg = db.order.create.mock.calls[0]?.[0];
-    expect(createArg.data.totalAmountCents).toBe(59900);
+    expect(createArg.data.totalAmountCents).toBe(55900);
+    expect(createArg.data.payments.create.amountCents).toBe(55900);
     expect(createArg.data.items.create).toEqual([
       expect.objectContaining({
         productId: "prod-headphone",

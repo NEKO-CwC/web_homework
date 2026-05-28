@@ -3,7 +3,7 @@ import { ActionForm } from "../components/ActionForm";
 import { AccessDenied } from "../components/AccessDenied";
 import { checkoutAction } from "@/lib/actions";
 import { getCurrentCustomerProfile, getDirectCheckoutLine, listCartItems } from "@/lib/data";
-import { formatMoney } from "@/lib/format";
+import { checkoutDiscountCents, checkoutTotalCents, formatMoney } from "@/lib/format";
 import { requireSessionUser } from "@/lib/session";
 
 type CheckoutSearchParams = {
@@ -34,8 +34,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
     getCurrentCustomerProfile(user.id)
   ]);
   const subtotal = lines.reduce((sum, line) => sum + line.product.priceCents * line.quantity, 0);
-  const discount = subtotal > 30000 ? 4000 : 0;
-  const total = Math.max(0, subtotal - discount);
+  const discount = checkoutDiscountCents(subtotal);
+  const total = checkoutTotalCents(subtotal);
 
   return (
     <>
@@ -95,6 +95,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
             <div className="empty-state">
               {directProductId ? "商品不可购买或库存不足，无法生成立即购买订单。" : "购物车为空，无法生成结算订单。"}
             </div>
+          ) : null}
+          {discount > 0 ? (
+            <div className="row"><span>演示立减</span><strong>-{formatMoney(discount)}</strong></div>
           ) : null}
           <div className="row"><span>应付合计</span><strong>{formatMoney(total)}</strong></div>
           <div className="steps" style={{ marginTop: 18 }}>

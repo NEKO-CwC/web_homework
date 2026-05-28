@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   badgeToneForOrder,
+  checkoutDiscountCents,
+  checkoutTotalCents,
   formatAfterSaleStatus,
   formatAfterSaleType,
   formatMoney,
@@ -14,6 +16,12 @@ describe("format helpers", () => {
   it("formats integer cents as Chinese yuan", () => {
     expect(formatMoney(32900)).toBe("¥329");
     expect(formatMoney(0)).toBe("¥0");
+  });
+
+  it("calculates checkout discount and payable total consistently", () => {
+    expect(checkoutDiscountCents(30000)).toBe(0);
+    expect(checkoutDiscountCents(30001)).toBe(4000);
+    expect(checkoutTotalCents(65800)).toBe(61800);
   });
 
   it("formats business status labels", () => {

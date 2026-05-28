@@ -13,6 +13,14 @@ export function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
+export function checkoutDiscountCents(subtotalCents: number) {
+  return subtotalCents > 30000 ? 4000 : 0;
+}
+
+export function checkoutTotalCents(subtotalCents: number) {
+  return Math.max(0, subtotalCents - checkoutDiscountCents(subtotalCents));
+}
+
 export function visibleReviewCount(summaryCount: number, listedCount: number) {
   return Math.max(summaryCount, listedCount);
 }
