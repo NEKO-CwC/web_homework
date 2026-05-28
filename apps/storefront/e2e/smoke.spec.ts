@@ -274,6 +274,17 @@ test("home category filter narrows product discovery", async ({ page }) => {
   await expect(page.getByRole("link", { name: "空气感智能台灯" })).toHaveCount(0);
 });
 
+test("home product cards show visible add-to-cart feedback", async ({ page }) => {
+  await login(page, "customer@example.com");
+  const cartNav = page.getByRole("link", { name: /购物车/ }).first();
+  await expect(cartNav.locator(".count")).toHaveText("2");
+  await page.goto("/");
+  const productCard = page.locator(".product-card").filter({ hasText: "空气感智能台灯" });
+  await productCard.getByRole("button", { name: "加入" }).click();
+  await expect(productCard.getByRole("status")).toHaveText("已加入购物车");
+  await expect(cartNav.locator(".count")).toHaveText("3");
+});
+
 test("optimized storefront media renders from seeded assets", async ({ page }) => {
   await page.goto("/");
   await expectLoadedImage(page, "桌面焕新季 Banner");

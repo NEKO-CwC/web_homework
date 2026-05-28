@@ -572,6 +572,37 @@ a {
   gap: 12px;
 }
 
+.compact-cart-form {
+  position: relative;
+}
+
+.cart-toast {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  width: max-content;
+  max-width: 190px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cart-toast.success {
+  border-color: color-mix(in oklch, var(--success) 28%, var(--border));
+  color: oklch(42% 0.12 150);
+}
+
+.cart-toast.danger {
+  border-color: color-mix(in oklch, var(--danger) 28%, var(--border));
+  color: var(--danger);
+}
+
 .price {
   font-weight: 760;
   letter-spacing: -.03em;

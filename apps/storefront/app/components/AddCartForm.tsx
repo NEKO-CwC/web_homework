@@ -31,7 +31,7 @@ export function AddCartForm({
   }, [state]);
 
   return (
-    <form action={action} className={compact ? "" : "form"}>
+    <form action={action} className={compact ? "compact-cart-form" : "form"}>
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="productName" value={productName} />
       <input type="hidden" name="stock" value={String(stock)} />
@@ -39,8 +39,14 @@ export function AddCartForm({
         <ShoppingCart size={16} />
         {stock < 1 ? "缺货" : compact ? "加入" : pending ? "加入中..." : "加入购物车"}
       </Button>
-      {state.message && !compact ? (
-        <div className={`form-feedback ${state.ok ? "success" : "danger"}`}>{state.message}</div>
+      {state.message ? (
+        <div
+          className={`${compact ? "cart-toast" : "form-feedback"} ${state.ok ? "success" : "danger"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {compact && state.ok ? "已加入购物车" : state.message}
+        </div>
       ) : null}
     </form>
   );
