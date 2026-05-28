@@ -99,11 +99,12 @@ export async function getActorId(fallbackId: string) {
 export async function requireSessionUser(area: ProtectedArea) {
   const user = await getCurrentSessionUser();
   if (canAccessArea(user, area)) return { user, denied: null };
+  const needsLogin = area === "customer" && !user;
   return {
     user: null,
     denied: {
-      title: area === "customer" ? "请先登录" : "403 无权访问",
-      message: area === "customer" ? "请登录后访问购物车、订单和售后页面。" : "当前账号无权访问该工作台。"
+      title: needsLogin ? "请先登录" : "403 无权访问",
+      message: needsLogin ? "请登录后访问购物车、订单和售后页面。" : "当前账号无权访问该工作台。"
     }
   };
 }

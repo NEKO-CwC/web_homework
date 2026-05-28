@@ -21,7 +21,10 @@ describe("authorization rules", () => {
     expect(canAccessArea({ id: "u1", role: "CUSTOMER" }, "customer")).toBe(true);
     expect(canAccessArea({ id: "u1", role: "CUSTOMER" }, "merchant")).toBe(false);
     expect(canAccessArea({ id: "u2", role: "MERCHANT" }, "merchant")).toBe(true);
+    expect(canAccessArea({ id: "u2", role: "MERCHANT" }, "customer")).toBe(false);
     expect(canAccessArea({ id: "u3", role: "ADMIN" }, "admin")).toBe(true);
+    expect(canAccessArea({ id: "u3", role: "ADMIN" }, "merchant")).toBe(false);
+    expect(canAccessArea({ id: "u3", role: "ADMIN" }, "customer")).toBe(false);
   });
 });
 

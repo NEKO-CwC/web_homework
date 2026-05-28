@@ -171,12 +171,18 @@ test("protected pages require login or the right role", async ({ page }) => {
   await login(page, "merchant@example.com");
   await page.goto("/merchant/products");
   await expect(page.getByText("商家商品 / 店铺管理").first()).toBeVisible();
+  await page.goto("/orders");
+  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
 
   await login(page, "admin@example.com");
   await page.goto("/admin");
   await expect(page.getByText("管理员平台总览").first()).toBeVisible();
+  await page.goto("/merchant/products");
+  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
+  await page.goto("/cart");
+  await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
 });
 
 test("navigation marks the current page and mobile menu can close", async ({ page }) => {

@@ -28,8 +28,8 @@ export interface AuthenticatedUser extends SessionUser {
 }
 
 const areaRoles: Record<ProtectedArea, UserRole[]> = {
-  customer: ["CUSTOMER", "MERCHANT", "ADMIN"],
-  merchant: ["MERCHANT", "ADMIN"],
+  customer: ["CUSTOMER"],
+  merchant: ["MERCHANT"],
   admin: ["ADMIN"]
 };
 
