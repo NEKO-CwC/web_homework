@@ -63,6 +63,44 @@ export async function listDiscoverProducts() {
   return listDemoAvailableProducts();
 }
 
+export async function searchDiscoverProducts(keyword: string) {
+  const normalized = keyword.trim().toLowerCase();
+  if (!normalized) return listDiscoverProducts();
+
+  if (isPrismaDataMode()) {
+    const db = await getPrismaClient();
+    const rows = await db.product.findMany({
+      where: {
+        status: "ACTIVE",
+        stock: { gt: 0 },
+        store: { status: "ACTIVE" },
+        OR: [
+          { name: { contains: keyword, mode: "insensitive" } },
+          { description: { contains: keyword, mode: "insensitive" } },
+          { store: { name: { contains: keyword, mode: "insensitive" } } }
+        ]
+      },
+      include: {
+        images: true,
+        reviews: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return rows.map(mapProduct);
+  }
+
+  const stores = listDemoStores();
+  return listDemoAvailableProducts().filter((product) => {
+    const store = stores.find((item) => item.id === product.storeId);
+    return [
+      product.name,
+      product.description,
+      product.sellingPoint,
+      store?.name ?? ""
+    ].some((value) => value.toLowerCase().includes(normalized));
+  });
+}
+
 export async function findProductDetail(id: string) {
   if (isPrismaDataMode()) {
     const db = await getPrismaClient();

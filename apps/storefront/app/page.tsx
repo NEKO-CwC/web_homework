@@ -4,13 +4,15 @@ import { ArrowRight, ShoppingCart, Store } from "lucide-react";
 import { Card, StatusBadge } from "@minimal-mall/ui";
 import { AddCartForm } from "./components/AddCartForm";
 import { EmptyState, ErrorState, LoadingState } from "./components/PageState";
-import { listCategories, listDiscoverProducts, listHomeBanners, listStores } from "@/lib/data";
+import { listCategories, listDiscoverProducts, listHomeBanners, listStores, searchDiscoverProducts } from "@/lib/data";
 import { formatMoney } from "@/lib/format";
 
-export default async function HomePage({ searchParams }: { searchParams?: Promise<{ category?: string }> }) {
-  const selectedCategoryName = (await searchParams)?.category;
+export default async function HomePage({ searchParams }: { searchParams?: Promise<{ category?: string; q?: string }> }) {
+  const params = await searchParams;
+  const selectedCategoryName = params?.category;
+  const keyword = params?.q?.trim() ?? "";
   const [products, categories, homeBanners, stores] = await Promise.all([
-    listDiscoverProducts(),
+    keyword ? searchDiscoverProducts(keyword) : listDiscoverProducts(),
     listCategories(),
     listHomeBanners(),
     listStores()
@@ -76,19 +78,30 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
       <section className="section-head">
         <div>
-          <h3>分类筛选</h3>
-          <p>仅展示上架、库存充足、商家未冻结的商品。</p>
+          <h3>分类与搜索</h3>
+          <p>仅展示上架、库存充足、商家未冻结的商品，关键词匹配商品、描述和店铺。</p>
         </div>
       </section>
+      <form className="form grid cols-4" method="get" action="/#products" style={{ marginBottom: 18 }}>
+        <div className="field" style={{ gridColumn: "span 2" }}>
+          <label htmlFor="discover-q">搜索商品</label>
+          <input id="discover-q" name="q" defaultValue={keyword} placeholder="商品名、卖点或店铺名" />
+        </div>
+        {selectedCategory ? <input type="hidden" name="category" value={selectedCategory.name} /> : null}
+        <div className="top-actions">
+          <button className="ui-button ui-button--secondary" type="submit">搜索</button>
+          {keyword ? <Link className="ui-button ui-button--ghost" href={selectedCategory ? `/?category=${encodeURIComponent(selectedCategory.name)}#products` : "/#products"}>清除</Link> : null}
+        </div>
+      </form>
       <div className="grid cols-3">
-        <Link className={`metric filter-card ${selectedCategory ? "" : "active"}`} href="/#products">
+        <Link className={`metric filter-card ${selectedCategory ? "" : "active"}`} href={keyword ? `/?q=${encodeURIComponent(keyword)}#products` : "/#products"}>
           <div className="num">{products.length}</div>
           <div className="label">全部商品</div>
         </Link>
         {categories.map((category) => (
           <Link
             className={`metric filter-card ${selectedCategory?.id === category.id ? "active" : ""}`}
-            href={`/?category=${encodeURIComponent(category.name)}#products`}
+            href={`/?category=${encodeURIComponent(category.name)}${keyword ? `&q=${encodeURIComponent(keyword)}` : ""}#products`}
             key={category.id}
           >
             <div className="num">{products.filter((product) => product.categoryId === category.id).length}</div>
@@ -99,14 +112,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
       <section className="section-head" id="products">
         <div>
-          <h3>{selectedCategory ? `${selectedCategory.name}商品` : "精选商品"}</h3>
-          <p>商品卡片包含图片占位、标题、卖点、价格和加入购物车主操作。</p>
+          <h3>{keyword ? `“${keyword}”搜索结果` : selectedCategory ? `${selectedCategory.name}商品` : "精选商品"}</h3>
+          <p>{selectedCategory ? `${selectedCategory.name}分类 · ` : ""}商品卡片包含图片占位、标题、卖点、价格和加入购物车主操作。</p>
         </div>
         <Link className="ui-button ui-button--secondary" href="/cart">
           <ShoppingCart size={16} /> 购物车
         </Link>
       </section>
-      {visibleProducts.length === 0 ? <EmptyState label="暂无可购买商品" /> : null}
+      {visibleProducts.length === 0 ? <EmptyState label={keyword ? "搜索没有匹配商品" : "暂无可购买商品"} /> : null}
       <div className="grid cols-4">
         {visibleProducts.map((product) => {
           const store = stores.find((item) => item.id === product.storeId);
