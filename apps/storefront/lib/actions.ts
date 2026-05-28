@@ -366,12 +366,16 @@ export async function merchantApplyAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("开店申请未提交", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
-  const message = await getMallWriteService().submitMerchantApplication({
-    userId: await requireActorId("customer"),
-    ...parsed.data
-  });
-  revalidatePaths(["/merchant/apply", "/admin", "/admin/merchants"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().submitMerchantApplication({
+      userId: await requireActorId("customer"),
+      ...parsed.data
+    });
+    revalidatePaths(["/merchant/apply", "/admin", "/admin/merchants"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "开店申请提交失败");
+  }
 }
 
 export async function productPublishAction(_: ActionState, formData: FormData) {

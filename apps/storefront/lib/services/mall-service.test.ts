@@ -191,6 +191,13 @@ describe("DemoMallWriteService", () => {
       description: "自动审核后直接生成店铺。",
       licenseImageUrl: "/uploads/license-auto.png"
     })).resolves.toContain("自动通过");
+    await expect(service.submitMerchantApplication({
+      userId: "merchant-1",
+      storeName: "重复开店",
+      categoryId: "cat-digital",
+      description: "已有店铺不能重复开店。",
+      licenseImageUrl: "/uploads/license-repeat.png"
+    })).rejects.toThrow("当前账号已拥有店铺");
   });
 
   it("returns role-specific sessions for seeded demo accounts", async () => {
@@ -1558,6 +1565,23 @@ describe("PrismaMallWriteService", () => {
         status: "ACTIVE"
       })
     });
+  });
+
+  it("rejects merchant applications from users that already own a store", async () => {
+    const db = createMockDb();
+    db.store.findFirst.mockResolvedValue({ id: "store-existing", ownerId: "merchant-1" });
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.submitMerchantApplication({
+      userId: "merchant-1",
+      storeName: "重复开店",
+      categoryId: "cat-digital",
+      description: "已有店铺时不能再次提交开店申请。",
+      licenseImageUrl: "/uploads/license-repeat.png"
+    })).rejects.toThrow("当前账号已拥有店铺");
+
+    expect(db.systemSetting.findUnique).not.toHaveBeenCalled();
+    expect(db.merchantApplication.create).not.toHaveBeenCalled();
   });
 
   it("persists the requested home banner status", async () => {

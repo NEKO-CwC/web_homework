@@ -15,6 +15,7 @@ import {
   confirmDemoOrderReceive,
   createDemoAfterSale,
   createDemoShipment,
+  listDemoStores,
   publishDemoProduct,
   registerDemoCustomer,
   saveDemoCustomerProfile,
@@ -281,6 +282,9 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async submitMerchantApplication(input: MerchantApplicationInput) {
+    if (listDemoStores().some((store) => store.ownerId === input.userId)) {
+      throw new Error("当前账号已拥有店铺");
+    }
     if (getDemoSystemSetting("merchantManualReview")?.value === "auto") {
       void input;
       return "开店申请已自动通过，店铺已生成";
@@ -863,13 +867,13 @@ export class PrismaMallWriteService implements MallWriteService {
 
   async submitMerchantApplication(input: MerchantApplicationInput) {
     const db = await this.getDb();
+    const existingStore = await db.store.findFirst({
+      where: { ownerId: input.userId }
+    });
+    if (existingStore) throw new Error("当前账号已拥有店铺");
+
     const reviewSetting = await db.systemSetting.findUnique({ where: { key: "merchantManualReview" } });
     if (reviewSetting?.value === "auto") {
-      const existingStore = await db.store.findFirst({
-        where: { ownerId: input.userId }
-      });
-      if (existingStore) throw new Error("当前账号已拥有店铺");
-
       await db.$transaction(async (tx) => {
         await tx.merchantApplication.create({
           data: {
