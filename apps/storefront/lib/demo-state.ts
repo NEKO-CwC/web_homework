@@ -299,6 +299,28 @@ export function updateDemoStoreStatus(input: {
   return { ...existing };
 }
 
+export function createDemoStore(input: {
+  ownerId: string;
+  categoryId: string;
+  name: string;
+  description: string;
+}): Store {
+  const store = getDemoStateStore();
+  const existing = store.stores.find((item) => item.ownerId === input.ownerId);
+  if (existing) return { ...existing };
+
+  const nextStore: Store = {
+    id: `store-demo-${store.stores.length + 1}`,
+    ownerId: input.ownerId,
+    categoryId: input.categoryId,
+    name: input.name,
+    description: input.description,
+    status: "ACTIVE"
+  };
+  store.stores = [...store.stores, nextStore];
+  return { ...nextStore };
+}
+
 export function listDemoOrders(userId?: string): Order[] {
   return cloneOrders(getDemoStateStore().orders.filter((order) => !userId || order.userId === userId));
 }

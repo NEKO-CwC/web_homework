@@ -15,6 +15,7 @@ import {
   confirmDemoOrderReceive,
   createDemoAfterSale,
   createDemoShipment,
+  createDemoStore,
   findDemoCustomerProfileByAccount,
   listDemoStores,
   publishDemoProduct,
@@ -158,6 +159,11 @@ export interface AuthResult {
   };
 }
 
+export interface MerchantApplicationResult {
+  message: string;
+  promotedUser?: AuthResult["user"];
+}
+
 export interface RegisterInput {
   account: string;
   password: string;
@@ -236,7 +242,7 @@ export interface MallWriteService {
   confirmReceive(input: { userId?: string; orderNo: string; status: OrderStatus }): Promise<string>;
   submitReview(input: ReviewInput): Promise<string>;
   createAfterSale(input: AfterSaleInput): Promise<string>;
-  submitMerchantApplication(input: MerchantApplicationInput): Promise<string>;
+  submitMerchantApplication(input: MerchantApplicationInput): Promise<MerchantApplicationResult>;
   publishProduct(input: ProductInput): Promise<string>;
   updateStoreProfile(input: StoreProfileInput): Promise<string>;
   updateProduct(input: ProductUpdateInput): Promise<string>;
@@ -397,17 +403,29 @@ export class DemoMallWriteService implements MallWriteService {
     return "售后申请已提交，商家工作台可见";
   }
 
-  async submitMerchantApplication(input: MerchantApplicationInput) {
+  async submitMerchantApplication(input: MerchantApplicationInput): Promise<MerchantApplicationResult> {
     validateMerchantApplicationInput(input);
     if (listDemoStores().some((store) => store.ownerId === input.userId)) {
       throw new Error("当前账号已拥有店铺");
     }
     if (getDemoSystemSetting("merchantManualReview")?.value === "auto") {
-      void input;
-      return "开店申请已自动通过，店铺已生成";
+      const store = createDemoStore({
+        ownerId: input.userId,
+        categoryId: input.categoryId,
+        name: input.storeName,
+        description: input.description
+      });
+      return {
+        message: "开店申请已自动通过，店铺已生成",
+        promotedUser: {
+          id: input.userId,
+          role: "MERCHANT",
+          storeIds: [store.id]
+        }
+      };
     }
     nextMerchantApplicationStatus("DRAFT", "submit");
-    return "开店申请已提交，状态为待审核";
+    return { message: "开店申请已提交，状态为待审核" };
   }
 
   async publishProduct(input: ProductInput) {
@@ -1000,7 +1018,7 @@ export class PrismaMallWriteService implements MallWriteService {
     return "售后申请已提交，商家工作台可见";
   }
 
-  async submitMerchantApplication(input: MerchantApplicationInput) {
+  async submitMerchantApplication(input: MerchantApplicationInput): Promise<MerchantApplicationResult> {
     validateMerchantApplicationInput(input);
     const db = await this.getDb();
     const existingStore = await db.store.findFirst({
@@ -1010,7 +1028,7 @@ export class PrismaMallWriteService implements MallWriteService {
 
     const reviewSetting = await db.systemSetting.findUnique({ where: { key: "merchantManualReview" } });
     if (reviewSetting?.value === "auto") {
-      await db.$transaction(async (tx) => {
+      const store = await db.$transaction(async (tx) => {
         await tx.merchantApplication.create({
           data: {
             userId: input.userId,
@@ -1022,11 +1040,11 @@ export class PrismaMallWriteService implements MallWriteService {
             reviewedAt: new Date()
           }
         });
-        await tx.user.update({
+        const promotedUser = await tx.user.update({
           where: { id: input.userId },
           data: { role: "MERCHANT" }
         });
-        await tx.store.create({
+        const createdStore = await tx.store.create({
           data: {
             ownerId: input.userId,
             categoryId: input.categoryId,
@@ -1035,8 +1053,22 @@ export class PrismaMallWriteService implements MallWriteService {
             status: "ACTIVE"
           }
         });
+        return {
+          storeId: createdStore.id,
+          email: promotedUser.email,
+          phone: promotedUser.phone
+        };
       });
-      return "开店申请已自动通过，店铺已生成";
+      return {
+        message: "开店申请已自动通过，店铺已生成",
+        promotedUser: {
+          id: input.userId,
+          role: "MERCHANT",
+          email: store.email,
+          phone: store.phone,
+          storeIds: [store.storeId]
+        }
+      };
     }
 
     const existing = await db.merchantApplication.findFirst({
@@ -1057,7 +1089,7 @@ export class PrismaMallWriteService implements MallWriteService {
         status: nextMerchantApplicationStatus("DRAFT", "submit")
       }
     });
-    return "开店申请已提交，状态为待审核";
+    return { message: "开店申请已提交，状态为待审核" };
   }
 
   async publishProduct(input: ProductInput) {

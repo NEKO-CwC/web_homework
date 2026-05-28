@@ -198,7 +198,14 @@ describe("DemoMallWriteService", () => {
       categoryId: "cat-digital",
       description: "自动审核后直接生成店铺。",
       licenseImageUrl: "/uploads/license-auto.png"
-    })).resolves.toContain("自动通过");
+    })).resolves.toMatchObject({
+      message: expect.stringContaining("自动通过"),
+      promotedUser: {
+        id: "user-customer-1",
+        role: "MERCHANT",
+        storeIds: [expect.stringMatching(/^store-demo-/)]
+      }
+    });
     await expect(service.submitMerchantApplication({
       userId: "merchant-1",
       storeName: "重复开店",
@@ -342,7 +349,7 @@ describe("DemoMallWriteService", () => {
       categoryId: "cat-digital",
       description: "经营桌面用品和轻办公配件。",
       licenseImageUrl: "/uploads/license.png"
-    })).resolves.toContain("待审核");
+    })).resolves.toMatchObject({ message: expect.stringContaining("待审核") });
     await expect(service.publishProduct({
       storeId: "store-minimal",
       name: "桌面新品",
@@ -1832,8 +1839,13 @@ describe("PrismaMallWriteService", () => {
     db.systemSetting.findUnique.mockResolvedValue({ key: "merchantManualReview", value: "auto" });
     db.store.findFirst.mockResolvedValue(null);
     db.merchantApplication.create.mockResolvedValue({});
-    db.user.update.mockResolvedValue({});
-    db.store.create.mockResolvedValue({});
+    db.user.update.mockResolvedValue({
+      id: "user-applicant",
+      email: "apply@example.com",
+      phone: "13800000005",
+      role: "MERCHANT"
+    });
+    db.store.create.mockResolvedValue({ id: "store-auto" });
     const service = new PrismaMallWriteService(db as never);
 
     await expect(service.submitMerchantApplication({
@@ -1842,7 +1854,16 @@ describe("PrismaMallWriteService", () => {
       categoryId: "cat-digital",
       description: "自动审核后直接生成店铺。",
       licenseImageUrl: "/uploads/license-auto.png"
-    })).resolves.toContain("自动通过");
+    })).resolves.toMatchObject({
+      message: expect.stringContaining("自动通过"),
+      promotedUser: {
+        id: "user-applicant",
+        role: "MERCHANT",
+        email: "apply@example.com",
+        phone: "13800000005",
+        storeIds: ["store-auto"]
+      }
+    });
 
     expect(db.merchantApplication.create).toHaveBeenCalledWith({
       data: expect.objectContaining({

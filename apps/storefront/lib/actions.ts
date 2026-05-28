@@ -381,12 +381,15 @@ export async function merchantApplyAction(_: ActionState, formData: FormData) {
     return fail("开店申请未提交", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
   try {
-    const message = await getMallWriteService().submitMerchantApplication({
+    const result = await getMallWriteService().submitMerchantApplication({
       userId: await requireActorId("customer"),
       ...parsed.data
     });
-    revalidatePaths(["/merchant/apply", "/admin", "/admin/merchants"]);
-    return ok(message);
+    if (result.promotedUser) {
+      await setSessionUser(result.promotedUser);
+    }
+    revalidatePaths(["/merchant/apply", "/merchant/products", "/merchant/orders", "/admin", "/admin/merchants"]);
+    return ok(result.message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "开店申请提交失败");
   }

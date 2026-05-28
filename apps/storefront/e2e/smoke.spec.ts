@@ -811,6 +811,9 @@ test("administrator can edit home banner status and system settings", async ({ p
   await page.goto("/merchant/apply");
   await page.getByRole("button", { name: "提交审核" }).click();
   await expect(page.getByText("开店申请已自动通过")).toBeVisible();
+  await page.goto("/merchant/products");
+  await expect(page.getByText("商家商品 / 店铺管理").first()).toBeVisible();
+  await expect(page.getByText("潮流配件仓").first()).toBeVisible();
 
   await login(page, "admin@example.com");
   await page.goto("/admin/home");
