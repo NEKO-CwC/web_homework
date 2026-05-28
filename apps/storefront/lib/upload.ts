@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import { extname } from "node:path";
+import { join } from "node:path";
 
 export const uploadMaxBytes = 2 * 1024 * 1024;
 
@@ -31,4 +34,36 @@ export function resolveUploadExtension(fileName: string, mimeType: string) {
   const originalExtension = extname(fileName).toLowerCase();
   const safeExtension = originalExtension === ".jpeg" ? ".jpg" : originalExtension;
   return [".jpg", ".png"].includes(safeExtension) ? safeExtension : expectedExtension;
+}
+
+type UploadFile = {
+  name: string;
+  type: string;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
+type UploadStorage = {
+  cwd?: string;
+  now?: () => number;
+  randomId?: () => string;
+  mkdir?: typeof mkdir;
+  writeFile?: typeof writeFile;
+};
+
+export async function saveUploadedImage(scope: UploadScope, file: UploadFile, storage: UploadStorage = {}) {
+  const finalExtension = resolveUploadExtension(file.name, file.type);
+  const relativePath = `/uploads/${scope}-${storage.now?.() ?? Date.now()}-${storage.randomId?.() ?? randomUUID()}${finalExtension}`;
+  const publicDir = join(storage.cwd ?? process.cwd(), "public");
+  const uploadDir = join(publicDir, "uploads");
+  const target = join(publicDir, relativePath);
+  const writeUploadDir = storage.mkdir ?? mkdir;
+  const writeUploadFile = storage.writeFile ?? writeFile;
+
+  try {
+    await writeUploadDir(uploadDir, { recursive: true });
+    await writeUploadFile(target, Buffer.from(await file.arrayBuffer()));
+    return { ok: true as const, imageUrl: relativePath };
+  } catch {
+    return { ok: false as const, message: "图片上传失败，请稍后重试" };
+  }
 }

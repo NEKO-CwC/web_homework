@@ -1,8 +1,5 @@
 "use server";
 
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -14,7 +11,7 @@ import type { OrderStatus } from "@minimal-mall/types";
 import type { AfterSaleType, BannerStatus, ProductStatus, StoreStatus } from "@minimal-mall/types";
 import { getMallWriteService } from "./services/mall-service";
 import { clearSessionUser, requireActorId, setSessionUser } from "./session";
-import { isUploadScope, resolveUploadExtension, validateImageUpload } from "./upload";
+import { isUploadScope, saveUploadedImage, validateImageUpload } from "./upload";
 
 export interface ActionState {
   ok: boolean;
@@ -140,13 +137,10 @@ export async function uploadImageAction(_: ActionState, formData: FormData) {
   if (!validation.ok) return fail(validation.message, { file: validation.message });
   if (!file) return fail("请选择要上传的图片", { file: "请选择要上传的图片" });
 
-  const finalExtension = resolveUploadExtension(file.name, file.type);
-  const relativePath = `/uploads/${scope}-${Date.now()}-${randomUUID()}${finalExtension}`;
-  const target = join(process.cwd(), "public", relativePath);
-  await mkdir(join(process.cwd(), "public", "uploads"), { recursive: true });
-  await writeFile(target, Buffer.from(await file.arrayBuffer()));
+  const result = await saveUploadedImage(scope, file);
+  if (!result.ok) return fail(result.message, { file: result.message });
 
-  return ok("图片上传成功", { imageUrl: relativePath });
+  return ok("图片上传成功", { imageUrl: result.imageUrl });
 }
 
 export async function saveProfileAction(_: ActionState, formData: FormData) {
