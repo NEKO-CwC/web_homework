@@ -157,12 +157,16 @@ export async function saveProfileAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("资料保存失败", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
-  const message = await getMallWriteService().saveProfile({
-    userId: await requireActorId("customer"),
-    ...parsed.data
-  });
-  revalidatePaths(["/account", "/checkout"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().saveProfile({
+      userId: await requireActorId("customer"),
+      ...parsed.data
+    });
+    revalidatePaths(["/account", "/checkout"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "资料保存失败");
+  }
 }
 
 export async function addCartAction(_: ActionState, formData: FormData) {
@@ -171,14 +175,18 @@ export async function addCartAction(_: ActionState, formData: FormData) {
   const stock = Number(formValue(formData, "stock"));
   if (!productName) return fail("缺少商品信息");
   if (!Number.isFinite(stock) || stock < 1) return fail("库存不足，无法加入购物车");
-  const result = await getMallWriteService().addCartItem({
-    userId: await requireActorId("customer"),
-    productId,
-    productName,
-    stock
-  });
-  revalidatePaths(["/", "/cart", "/checkout"]);
-  return ok(result.message, { cartDelta: result.cartDelta });
+  try {
+    const result = await getMallWriteService().addCartItem({
+      userId: await requireActorId("customer"),
+      productId,
+      productName,
+      stock
+    });
+    revalidatePaths(["/", "/cart", "/checkout"]);
+    return ok(result.message, { cartDelta: result.cartDelta });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "加入购物车失败");
+  }
 }
 
 export async function updateCartQuantityAction(_: ActionState, formData: FormData) {
@@ -339,13 +347,17 @@ export async function afterSaleAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("售后申请失败", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
-  const message = await getMallWriteService().createAfterSale({
-    userId: await requireActorId("customer"),
-    ...parsed.data,
-    type: parsed.data.type as AfterSaleType
-  });
-  revalidatePaths(["/orders", "/after-sale", "/merchant/orders", "/admin"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().createAfterSale({
+      userId: await requireActorId("customer"),
+      ...parsed.data,
+      type: parsed.data.type as AfterSaleType
+    });
+    revalidatePaths(["/orders", "/after-sale", "/merchant/orders", "/admin"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "售后申请失败");
+  }
 }
 
 export async function merchantApplyAction(_: ActionState, formData: FormData) {
@@ -526,14 +538,18 @@ export async function createShipmentAction(_: ActionState, formData: FormData) {
   const storeId = formValue(formData, "storeId");
   const status = parseOrderStatus(formValue(formData, "status"));
   if (!status || !canCreateShipment(status)) return fail("只有待发货订单可以生成运单");
-  const result = await getMallWriteService().createShipment({
-    actorId: await requireActorId("merchant"),
-    storeId,
-    orderNo,
-    status
-  });
-  revalidatePaths(["/orders", "/merchant/orders"]);
-  return ok(result.message, { trackingNo: result.trackingNo });
+  try {
+    const result = await getMallWriteService().createShipment({
+      actorId: await requireActorId("merchant"),
+      storeId,
+      orderNo,
+      status
+    });
+    revalidatePaths(["/orders", "/merchant/orders"]);
+    return ok(result.message, { trackingNo: result.trackingNo });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "运单生成失败");
+  }
 }
 
 export async function handleAfterSaleAction(_: ActionState, formData: FormData) {
@@ -612,11 +628,15 @@ export async function systemSettingAction(_: ActionState, formData: FormData) {
   const key = formValue(formData, "key");
   const value = formValue(formData, "value");
   if (!key) return fail("缺少配置项");
-  const message = await getMallWriteService().updateSystemSetting({
-    actorId: await requireActorId("admin"),
-    key,
-    value
-  });
-  revalidatePaths(["/admin/system"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().updateSystemSetting({
+      actorId: await requireActorId("admin"),
+      key,
+      value
+    });
+    revalidatePaths(["/admin/system"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "系统配置更新失败");
+  }
 }

@@ -502,6 +502,20 @@ test("customer can upload after-sale evidence before submitting", async ({ page 
   await expect(page.getByLabel("凭证图片")).toHaveValue(/\/uploads\/evidence-/);
 });
 
+test("customer sees stale after-sale business errors without leaving the page", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await page.goto("/after-sale");
+  const afterSaleForm = page.locator("form").filter({ has: page.locator("#afterOrderItemId") });
+  await afterSaleForm.locator("#afterOrderItemId").evaluate((select) => {
+    const option = Array.from((select as HTMLSelectElement).options).find((item) => item.value === "item-4");
+    option?.removeAttribute("disabled");
+  });
+  await afterSaleForm.getByLabel("选择订单商品").selectOption("item-4");
+  await afterSaleForm.getByRole("button", { name: "发起售后" }).click();
+  await expect(afterSaleForm.getByText("当前订单状态不支持售后申请")).toBeVisible();
+  await expect(page).toHaveURL(/\/after-sale/);
+});
+
 test("customer after-sale submission syncs into merchant handling and customer status", async ({ page }, testInfo) => {
   const isMobileProject = testInfo.project.name.includes("mobile");
   const account = isMobileProject ? "after-sale-mobile@example.com" : "after-sale-desktop@example.com";
