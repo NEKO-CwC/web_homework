@@ -135,7 +135,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       label: order.orderNo,
       href: "/orders",
       type: "订单",
-      text: `${order.orderNo} ${order.primaryProduct?.name ?? ""}`
+      text: `${order.orderNo} ${order.primaryProduct?.name ?? ""} ${order.shipment?.trackingNo ?? ""}`
     })),
     ...roleSearchItems
   ];

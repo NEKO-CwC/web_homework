@@ -321,47 +321,50 @@ test("visitor registration shows duplicate account feedback", async ({ page }) =
 
 test("global search shows result links and empty feedback", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("搜索商品、店铺或订单号").fill("台灯");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("台灯");
   const searchResult = page.getByRole("link", { name: /商品\s+空气感智能台灯/ });
   await expect(searchResult).toBeVisible();
   await searchResult.click();
   await expect(page).toHaveURL(/\/products\/prod-lamp/);
 
   await page.goto("/");
-  await page.getByLabel("搜索商品、店铺或订单号").fill("没有这个结果");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("没有这个结果");
   await expect(page.getByText("无匹配结果")).toBeVisible();
 });
 
 test("global search keeps order results behind customer login", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("搜索商品、店铺或订单号").fill("MO20260528001");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("MO20260528001");
   await expect(page.getByText("无匹配结果")).toBeVisible();
 
   await login(page, "customer@example.com");
-  await page.getByLabel("搜索商品、店铺或订单号").fill("MO20260528001");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("MO20260528001");
   await expect(page.getByRole("link", { name: /订单\s+MO20260528001/ })).toBeVisible();
+
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("VL-8218-0092");
+  await expect(page.getByRole("link", { name: /订单\s+MO20260527008/ })).toBeVisible();
 });
 
 test("global search exposes merchant-scoped products orders and after-sales", async ({ page }) => {
   await login(page, "merchant@example.com");
 
-  await page.getByLabel("搜索商品、店铺或订单号").fill("MO20260528001");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("MO20260528001");
   await expect(page.getByRole("link", { name: /商家订单\s+MO20260528001/ })).toBeVisible();
 
-  await page.getByLabel("搜索商品、店铺或订单号").fill("颜色与预期不符");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("颜色与预期不符");
   await expect(page.getByRole("link", { name: /售后\s+颜色与预期不符/ }).first()).toBeVisible();
 });
 
 test("global search exposes admin-scoped merchants banners and audit logs", async ({ page }) => {
   await login(page, "admin@example.com");
 
-  await page.getByLabel("搜索商品、店铺或订单号").fill("潮流配件仓");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("潮流配件仓");
   await expect(page.getByRole("link", { name: /商家申请\s+潮流配件仓/ })).toBeVisible();
 
-  await page.getByLabel("搜索商品、店铺或订单号").fill("桌面焕新季");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("桌面焕新季");
   await expect(page.getByRole("link", { name: /广告位\s+桌面焕新季/ })).toBeVisible();
 
-  await page.getByLabel("搜索商品、店铺或订单号").fill("刷新首页缓存");
+  await page.getByLabel("搜索商品、店铺、订单号或运单号").fill("刷新首页缓存");
   await expect(page.getByRole("link", { name: /审计\s+刷新首页缓存/ })).toBeVisible();
 });
 

@@ -38,10 +38,10 @@ export function GlobalSearch({ items }: { items: SearchItem[] }) {
       <Search size={18} />
       <input
         aria-controls="global-search-results"
-        aria-label="搜索商品、店铺或订单号"
+        aria-label="搜索商品、店铺、订单号或运单号"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="搜索商品、店铺或订单号"
+        placeholder="搜索商品、店铺、订单号或运单号"
       />
       <span className="search-result" aria-live="polite">
         {keyword.length < 2
