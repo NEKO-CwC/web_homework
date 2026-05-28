@@ -106,7 +106,19 @@ describe("admin data filters", () => {
     await expect(listAuditLogs({
       keyword: "刷新首页缓存"
     })).resolves.toEqual([
-      expect.objectContaining({ targetType: "SystemSetting" })
+      expect.objectContaining({
+        targetType: "SystemSetting",
+        metadataSummary: "from=1；to=2",
+        ipAddress: "127.0.0.1"
+      })
+    ]);
+
+    await expect(listAuditLogs({
+      keyword: "127.0.0.1"
+    })).resolves.toEqual([
+      expect.objectContaining({ id: "audit-1" }),
+      expect.objectContaining({ id: "audit-2" }),
+      expect.objectContaining({ id: "audit-3" })
     ]);
 
     await expect(listAuditLogsPage({

@@ -737,6 +737,8 @@ export const auditLogs: AuditLog[] = [
     targetType: "MerchantApplication",
     targetId: "apply-2",
     result: "SUCCESS",
+    metadataSummary: "status=APPROVED",
+    ipAddress: "127.0.0.1",
     createdAt: "2026-05-27 16:40"
   },
   {
@@ -747,6 +749,8 @@ export const auditLogs: AuditLog[] = [
     targetType: "Order",
     targetId: "order-2",
     result: "SUCCESS",
+    metadataSummary: "trackingNo=VL-8218-0092",
+    ipAddress: "127.0.0.1",
     createdAt: "2026-05-27 09:20"
   },
   {
@@ -757,6 +761,8 @@ export const auditLogs: AuditLog[] = [
     targetType: "SystemSetting",
     targetId: "homeCacheVersion",
     result: "SUCCESS",
+    metadataSummary: "from=1；to=2",
+    ipAddress: "127.0.0.1",
     createdAt: "2026-05-28 08:12"
   }
 ];

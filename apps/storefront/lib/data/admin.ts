@@ -244,6 +244,8 @@ function filterAuditLog(log: AuditLog, filters: AuditLogFilters) {
     log.targetType,
     log.targetId,
     log.result,
+    log.metadataSummary,
+    log.ipAddress,
     log.createdAt
   ].some((value) => value.toLowerCase().includes(keyword));
 }
@@ -280,6 +282,7 @@ export async function listAuditLogsPage(filters: AuditLogFilters = {}) {
             { targetType: containsKeyword },
             { targetId: containsKeyword },
             { result: containsKeyword },
+            { ipAddress: containsKeyword },
             { actor: { is: { email: containsKeyword } } },
             { actor: { is: { phone: containsKeyword } } }
           ]

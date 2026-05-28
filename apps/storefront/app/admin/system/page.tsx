@@ -152,7 +152,7 @@ export default async function AdminSystemPage({
         </form>
         <table className="table">
           <thead>
-            <tr><th>时间</th><th>操作者</th><th>角色</th><th>动作</th><th>对象</th><th>结果</th></tr>
+            <tr><th>时间</th><th>操作者</th><th>角色</th><th>动作</th><th>对象</th><th>来源</th><th>附加信息</th><th>结果</th></tr>
           </thead>
           <tbody>
             {auditLogs.map((log) => (
@@ -162,12 +162,14 @@ export default async function AdminSystemPage({
                 <td>{log.actorRole}</td>
                 <td>{log.action}</td>
                 <td>{log.targetType}:{log.targetId}</td>
+                <td>{log.ipAddress}</td>
+                <td>{log.metadataSummary}</td>
                 <td><StatusBadge tone={log.result === "SUCCESS" ? "success" : "danger"}>{log.result}</StatusBadge></td>
               </tr>
             ))}
             {auditLogs.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={8}>
                   <div className="empty-state">暂无匹配审计日志</div>
                 </td>
               </tr>

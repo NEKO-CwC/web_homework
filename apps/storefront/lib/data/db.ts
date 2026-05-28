@@ -226,7 +226,9 @@ export function mapAuditLog(row: {
   action: string;
   targetType: string;
   targetId: string;
+  metadata?: unknown;
   result: string;
+  ipAddress?: string | null;
   createdAt: Date | string;
 }): AuditLog {
   return {
@@ -237,8 +239,19 @@ export function mapAuditLog(row: {
     targetType: row.targetType,
     targetId: row.targetId,
     result: row.result,
+    metadataSummary: summarizeMetadata(row.metadata),
+    ipAddress: row.ipAddress ?? "未知来源",
     createdAt: formatDateTime(row.createdAt)
   };
+}
+
+function summarizeMetadata(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "无附加信息";
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return "无附加信息";
+  return entries
+    .map(([key, item]) => `${key}=${String(item)}`)
+    .join("；");
 }
 
 function formatDate(value: Date | string) {

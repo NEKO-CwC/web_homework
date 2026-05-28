@@ -166,5 +166,7 @@ export interface AuditLog {
   targetType: string;
   targetId: string;
   result: string;
+  metadataSummary: string;
+  ipAddress: string;
   createdAt: string;
 }
