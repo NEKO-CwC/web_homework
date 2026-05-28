@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetDemoSystemSettings, saveDemoHomeBanner, updateDemoSystemSetting } from "../demo-state";
+import { resetDemoSystemSettings, saveDemoHomeBanner, updateDemoAfterSale, updateDemoSystemSetting } from "../demo-state";
 import {
   getAdminOverview,
   listAdminAfterSales,
@@ -31,6 +31,19 @@ describe("admin data filters", () => {
     await expect(listAdminStores()).resolves.toHaveLength(2);
     await expect(listHomeBannersForAdmin()).resolves.toHaveLength(2);
     await expect(listSystemSettings()).resolves.toHaveLength(3);
+    await expect(listAdminAfterSales()).resolves.toHaveLength(3);
+  });
+
+  it("counts only requested after-sales as admin pending work", async () => {
+    updateDemoAfterSale({
+      afterSaleId: "after-1",
+      action: "approve",
+      reply: "同意换货"
+    });
+
+    await expect(getAdminOverview()).resolves.toMatchObject({
+      afterSaleCount: 2
+    });
     await expect(listAdminAfterSales()).resolves.toHaveLength(3);
   });
 

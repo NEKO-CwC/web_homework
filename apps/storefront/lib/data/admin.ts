@@ -1,6 +1,6 @@
 import type { AuditLog, MerchantApplicationStatus, StoreStatus, UserRole } from "@minimal-mall/types";
-import { afterSales, auditLogs, merchantApplications } from "../fixtures";
-import { listDemoHomeBanners, listDemoStores, listDemoSystemSettings } from "../demo-state";
+import { auditLogs, merchantApplications } from "../fixtures";
+import { listDemoAfterSales, listDemoHomeBanners, listDemoStores, listDemoSystemSettings } from "../demo-state";
 import {
   getPrismaClient,
   isPrismaDataMode,
@@ -33,7 +33,7 @@ export async function getAdminOverview() {
     storeCount: listDemoStores().length,
     pendingMerchantCount: merchantApplications.filter((item) => item.status === "SUBMITTED").length,
     onlineBannerCount: listDemoHomeBanners({ onlineOnly: true }).length,
-    afterSaleCount: afterSales.length,
+    afterSaleCount: listDemoAfterSales().filter((item) => item.status === "REQUESTED").length,
     health: "99.2%"
   };
 }
@@ -318,5 +318,5 @@ export async function listAdminAfterSales() {
     });
     return rows.map(mapAfterSale);
   }
-  return afterSales;
+  return listDemoAfterSales();
 }
