@@ -33,6 +33,39 @@ const adminRoutes = [
   ["/admin/system", "系统维护"]
 ] as const;
 
+const screenshotPages = [
+  { name: "home", route: "/" },
+  { name: "product-detail", route: "/products/prod-lamp" },
+  { name: "cart", route: "/cart", account: "customer@example.com" },
+  { name: "checkout", route: "/checkout", account: "customer@example.com" },
+  { name: "orders", route: "/orders", account: "customer@example.com" },
+  { name: "after-sale", route: "/after-sale", account: "customer@example.com" },
+  { name: "account", route: "/account" },
+  { name: "merchant-apply", route: "/merchant/apply", account: "customer@example.com" },
+  { name: "merchant-products", route: "/merchant/products", account: "merchant@example.com" },
+  { name: "merchant-orders", route: "/merchant/orders", account: "merchant@example.com" },
+  { name: "admin", route: "/admin", account: "admin@example.com" },
+  { name: "admin-merchants", route: "/admin/merchants", account: "admin@example.com" },
+  { name: "admin-home", route: "/admin/home", account: "admin@example.com" },
+  { name: "admin-system", route: "/admin/system", account: "admin@example.com" }
+] as const;
+
+const screenshotViewports = [
+  { name: "desktop", size: { width: 1440, height: 900 } },
+  { name: "mobile", size: { width: 390, height: 844 } }
+] as const;
+
+const screenshotShots = [
+  ...screenshotViewports.flatMap((viewport) =>
+    screenshotPages.map((page) => ({
+      ...page,
+      name: `${viewport.name}-${page.name}`,
+      size: viewport.size
+    }))
+  ),
+  { name: "tablet-orders", size: { width: 768, height: 1024 }, route: "/orders", account: "customer@example.com" }
+] as const;
+
 async function login(page: Page, account: string) {
   await page.goto("/account");
   await page.getByLabel("手机号 / 邮箱").first().fill(account);
@@ -745,28 +778,10 @@ test("administrator can filter audit logs", async ({ page }) => {
 });
 
 test("@screenshots captures required viewports", async ({ page }, testInfo) => {
-  test.setTimeout(90_000);
-  const shots = [
-    { name: "mobile-home", size: { width: 390, height: 844 }, route: "/" },
-    { name: "tablet-orders", size: { width: 768, height: 1024 }, route: "/orders", account: "customer@example.com" },
-    { name: "desktop-home", size: { width: 1440, height: 900 }, route: "/" },
-    { name: "desktop-product-detail", size: { width: 1440, height: 900 }, route: "/products/prod-lamp" },
-    { name: "desktop-cart", size: { width: 1440, height: 900 }, route: "/cart", account: "customer@example.com" },
-    { name: "desktop-checkout", size: { width: 1440, height: 900 }, route: "/checkout", account: "customer@example.com" },
-    { name: "desktop-orders", size: { width: 1440, height: 900 }, route: "/orders", account: "customer@example.com" },
-    { name: "desktop-after-sale", size: { width: 1440, height: 900 }, route: "/after-sale", account: "customer@example.com" },
-    { name: "desktop-account", size: { width: 1440, height: 900 }, route: "/account" },
-    { name: "desktop-merchant-apply", size: { width: 1440, height: 900 }, route: "/merchant/apply", account: "customer@example.com" },
-    { name: "desktop-merchant-products", size: { width: 1440, height: 900 }, route: "/merchant/products", account: "merchant@example.com" },
-    { name: "desktop-merchant-orders", size: { width: 1440, height: 900 }, route: "/merchant/orders", account: "merchant@example.com" },
-    { name: "desktop-admin", size: { width: 1440, height: 900 }, route: "/admin", account: "admin@example.com" },
-    { name: "desktop-admin-merchants", size: { width: 1440, height: 900 }, route: "/admin/merchants", account: "admin@example.com" },
-    { name: "desktop-admin-home", size: { width: 1440, height: 900 }, route: "/admin/home", account: "admin@example.com" },
-    { name: "desktop-admin-system", size: { width: 1440, height: 900 }, route: "/admin/system", account: "admin@example.com" }
-  ];
+  test.setTimeout(180_000);
 
   let currentAccount = "";
-  for (const shot of shots) {
+  for (const shot of screenshotShots) {
     await page.setViewportSize(shot.size);
     if ("account" in shot && shot.account && shot.account !== currentAccount) {
       await login(page, shot.account);
