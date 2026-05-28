@@ -31,29 +31,47 @@ export interface SystemServiceStatus {
   }[];
 }
 
+function summarizeSystemServices(statuses: SystemServiceStatus[]) {
+  const healthyCount = statuses.filter((status) => status.tone === "success").length;
+  const attentionStatus = statuses.find((status) => status.tone !== "success");
+  return {
+    health: `${healthyCount}/${statuses.length} 正常`,
+    systemTodoTitle: attentionStatus
+      ? `${attentionStatus.title}${attentionStatus.label}`
+      : "服务状态正常",
+    systemTodoDescription: attentionStatus
+      ? attentionStatus.description
+      : "虚拟支付、虚拟运单和审计日志均正常。",
+    systemTodoTone: attentionStatus?.tone ?? "success"
+  };
+}
+
 export async function getAdminOverview() {
+  const serviceSummaryPromise = listSystemServiceStatuses().then(summarizeSystemServices);
   if (isPrismaDataMode()) {
     const db = await getPrismaClient();
-    const [storeCount, pendingMerchantCount, onlineBannerCount, afterSaleCount] = await Promise.all([
+    const [storeCount, pendingMerchantCount, onlineBannerCount, afterSaleCount, serviceSummary] = await Promise.all([
       db.store.count(),
       db.merchantApplication.count({ where: { status: "SUBMITTED" } }),
       db.homeBanner.count({ where: { status: "ONLINE" } }),
-      db.afterSaleRequest.count({ where: { status: "REQUESTED" } })
+      db.afterSaleRequest.count({ where: { status: "REQUESTED" } }),
+      serviceSummaryPromise
     ]);
     return {
       storeCount,
       pendingMerchantCount,
       onlineBannerCount,
       afterSaleCount,
-      health: "99.2%"
+      ...serviceSummary
     };
   }
+  const serviceSummary = await serviceSummaryPromise;
   return {
     storeCount: listDemoStores().length,
     pendingMerchantCount: listDemoMerchantApplications().filter((item) => item.status === "SUBMITTED").length,
     onlineBannerCount: listDemoHomeBanners({ onlineOnly: true }).length,
     afterSaleCount: listDemoAfterSales().filter((item) => item.status === "REQUESTED").length,
-    health: "99.2%"
+    ...serviceSummary
   };
 }
 

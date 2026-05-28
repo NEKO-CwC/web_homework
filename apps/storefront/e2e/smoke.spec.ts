@@ -183,6 +183,9 @@ test("protected pages require login or the right role", async ({ page }) => {
   await login(page, "admin@example.com");
   await page.goto("/admin");
   await expect(page.getByText("管理员平台总览").first()).toBeVisible();
+  await expect(page.getByText("2/3 正常")).toBeVisible();
+  await expect(page.getByText("虚拟运单待生成")).toBeVisible();
+  await expect(page.getByText("3 笔待发货订单需要商家处理")).toBeVisible();
   await page.goto("/merchant/products");
   await expect(page.getByRole("heading", { name: "403 无权访问" })).toBeVisible();
   await page.goto("/cart");

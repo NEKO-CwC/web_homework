@@ -51,10 +51,13 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="row">
           <div>
-            <h4>虚拟运单队列轻微延迟</h4>
-            <p>建议检查系统配置与队列状态。</p>
+            <h4>{overview.systemTodoTitle}</h4>
+            <p>{overview.systemTodoDescription}</p>
           </div>
-          <Link className="ui-button ui-button--secondary" href="/admin/system">查看系统</Link>
+          <div className="top-actions">
+            <StatusBadge tone={overview.systemTodoTone}>服务状态</StatusBadge>
+            <Link className="ui-button ui-button--secondary" href="/admin/system">查看系统</Link>
+          </div>
         </div>
       </Card>
     </>

@@ -33,7 +33,11 @@ describe("admin data filters", () => {
       storeCount: 2,
       pendingMerchantCount: 1,
       onlineBannerCount: 2,
-      afterSaleCount: 3
+      afterSaleCount: 3,
+      health: "2/3 正常",
+      systemTodoTitle: "虚拟运单待生成",
+      systemTodoDescription: expect.stringContaining("3 笔待发货订单"),
+      systemTodoTone: "warning"
     });
     await expect(listMerchantApplications()).resolves.toHaveLength(2);
     await expect(listCurrentUserMerchantApplications("user-applicant")).resolves.toHaveLength(1);
