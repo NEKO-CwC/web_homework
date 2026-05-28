@@ -406,7 +406,12 @@ export class DemoMallWriteService implements MallWriteService {
 
   async submitReview(input: ReviewInput) {
     validateReviewInput(input);
-    markDemoOrderItemReviewed(input.orderItemId);
+    markDemoOrderItemReviewed({
+      userId: input.userId,
+      orderItemId: input.orderItemId,
+      rating: input.rating,
+      content: input.content
+    });
     return "评价已提交，商品评分已更新";
   }
 

@@ -1,8 +1,9 @@
 import type { ProductStatus } from "@minimal-mall/types";
-import { categories, getCategory, reviews } from "../fixtures";
+import { categories, getCategory } from "../fixtures";
 import {
   getDemoProduct,
   getDemoStore,
+  listDemoProductReviews,
   listDemoAvailableProducts,
   listDemoHomeBanners,
   listDemoProducts,
@@ -127,7 +128,7 @@ export async function findProductDetail(id: string) {
     product,
     store: getDemoStore(product.storeId),
     category: getCategory(product.categoryId),
-    reviews: reviews.filter((review) => review.productId === product.id)
+    reviews: listDemoProductReviews(product.id)
   };
 }
 

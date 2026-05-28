@@ -21,11 +21,12 @@ import type {
   OrderStatus,
   Product,
   ProductStatus,
+  Review,
   Store,
   StoreStatus,
   SystemSetting
 } from "@minimal-mall/types";
-import { afterSales, auditLogs, banners, cartLines, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
+import { afterSales, auditLogs, banners, cartLines, currentCustomer, merchantApplications, orders, products, reviews, settings, stores } from "./fixtures";
 import { checkoutTotalCents } from "./format";
 
 export interface DemoCustomerProfile {
@@ -50,6 +51,7 @@ interface DemoStateStore {
   merchantApplications: MerchantApplication[];
   orders: Order[];
   products: Product[];
+  reviews: Review[];
   settings: SystemSetting[];
   stores: Store[];
 }
@@ -66,6 +68,7 @@ function createDemoStateStore(): DemoStateStore {
     merchantApplications: cloneMerchantApplications(merchantApplications),
     orders: cloneOrders(orders),
     products: cloneProducts(products),
+    reviews: cloneReviews(reviews),
     settings: settings.map((setting) => ({ ...setting })),
     stores: cloneStores(stores)
   };
@@ -117,6 +120,10 @@ function cloneProducts(value: Product[]) {
     ...product,
     parameters: { ...product.parameters }
   }));
+}
+
+function cloneReviews(value: Review[]) {
+  return value.map((review) => ({ ...review }));
 }
 
 function cloneStores(value: Store[]) {
@@ -248,6 +255,14 @@ export function listDemoProducts(): Product[] {
 export function getDemoProduct(id: string): Product | undefined {
   const product = getDemoStateStore().products.find((item) => item.id === id);
   return product ? cloneProducts([product])[0] : undefined;
+}
+
+export function listDemoProductReviews(productId?: string): Review[] {
+  return cloneReviews(
+    getDemoStateStore().reviews
+      .filter((review) => !productId || review.productId === productId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  );
 }
 
 export function listDemoAvailableProducts(): Product[] {
@@ -707,16 +722,40 @@ export function createDemoShipment(input: { orderNo: string; status: OrderStatus
   return cloneOrders([order])[0];
 }
 
-export function markDemoOrderItemReviewed(orderItemId: string): Order {
-  const order = getDemoStateStore().orders.find((item) => item.items.some((orderItem) => orderItem.id === orderItemId));
+export function markDemoOrderItemReviewed(input: {
+  userId?: string;
+  orderItemId: string;
+  rating: number;
+  content: string;
+}): Review {
+  const store = getDemoStateStore();
+  const userId = input.userId ?? currentCustomer.id;
+  const order = store.orders.find((item) => item.items.some((orderItem) => orderItem.id === input.orderItemId));
   if (!order) throw new Error("订单商品不存在，无法评价");
-  const orderItem = order.items.find((item) => item.id === orderItemId);
+  if (order.userId !== userId) throw new Error("只能评价自己的订单");
+  const orderItem = order.items.find((item) => item.id === input.orderItemId);
   if (!orderItem || !canReviewOrderItem(order.status, orderItem.reviewed)) {
     throw new Error("只有已收货且未评价的订单商品可以评价");
   }
+  const review: Review = {
+    id: `review-demo-${store.reviews.length + 1}`,
+    userId,
+    productId: orderItem.productId,
+    orderItemId: orderItem.id,
+    rating: input.rating,
+    content: input.content,
+    createdAt: new Date().toISOString().slice(0, 10)
+  };
+  const product = store.products.find((item) => item.id === orderItem.productId);
+  if (product) {
+    const previousCount = product.reviewCount;
+    product.rating = Number((((product.rating * previousCount) + input.rating) / (previousCount + 1)).toFixed(1));
+    product.reviewCount = previousCount + 1;
+  }
   orderItem.reviewed = true;
   order.status = "COMPLETED";
-  return cloneOrders([order])[0];
+  store.reviews = [review, ...store.reviews];
+  return { ...review };
 }
 
 export function listDemoAfterSales(userId?: string): AfterSaleRequest[] {
@@ -897,6 +936,7 @@ export function resetDemoState() {
   store.merchantApplications = cloneMerchantApplications(merchantApplications);
   store.orders = cloneOrders(orders);
   store.products = cloneProducts(products);
+  store.reviews = cloneReviews(reviews);
   store.settings = settings.map((setting) => ({ ...setting }));
   store.stores = cloneStores(stores);
 }

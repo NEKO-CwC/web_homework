@@ -22,6 +22,7 @@ import {
   listCartItems,
   listCustomerOrders
 } from "../data/customer";
+import { findProductDetail } from "../data/catalog";
 import { DemoMallWriteService, PrismaMallWriteService } from "./mall-service";
 
 function createMockDb() {
@@ -495,6 +496,67 @@ describe("DemoMallWriteService", () => {
     });
   });
 
+  it("persists demo reviews to product detail and blocks duplicates", async () => {
+    await service.confirmReceive({
+      userId: "user-customer-1",
+      orderNo: "MO20260527008",
+      status: "SHIPPED"
+    });
+    const beforeDetail = await findProductDetail("prod-headphone");
+    expect(beforeDetail?.reviews).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ orderItemId: "item-2" })
+    ]));
+
+    await expect(service.submitReview({
+      userId: "user-customer-1",
+      orderItemId: "item-2",
+      rating: 4,
+      content: "确认收货后评价会展示在商品详情。"
+    })).resolves.toContain("评价已提交");
+
+    const detail = await findProductDetail("prod-headphone");
+    expect(detail).toMatchObject({
+      product: {
+        reviewCount: 43,
+        rating: 4.8
+      },
+      reviews: [
+        expect.objectContaining({
+          userId: "user-customer-1",
+          productId: "prod-headphone",
+          orderItemId: "item-2",
+          rating: 4,
+          content: "确认收货后评价会展示在商品详情。"
+        })
+      ]
+    });
+    expect(getDemoOrder("MO20260527008")?.items[0]).toMatchObject({
+      reviewed: true
+    });
+
+    await expect(service.submitReview({
+      userId: "user-customer-1",
+      orderItemId: "item-2",
+      rating: 5,
+      content: "不能重复评价同一个订单商品。"
+    })).rejects.toThrow("只有已收货且未评价的订单商品可以评价");
+  });
+
+  it("rejects demo reviews for another customer's order item", async () => {
+    await service.confirmReceive({
+      userId: "user-customer-1",
+      orderNo: "MO20260527008",
+      status: "SHIPPED"
+    });
+
+    await expect(service.submitReview({
+      userId: "other-customer",
+      orderItemId: "item-2",
+      rating: 5,
+      content: "不能评价别人的订单。"
+    })).rejects.toThrow("只能评价自己的订单");
+  });
+
   it("writes demo audit logs for critical admin and merchant actions", async () => {
     const shipment = await service.createShipment({
       actorId: "merchant-1",
@@ -609,25 +671,26 @@ describe("DemoMallWriteService", () => {
       cartItemId: "cart-1"
     })).resolves.toContain("已删除");
     await expect(service.confirmReceive({
-      orderNo: "MO20260527009",
+      orderNo: "MO20260527008",
       status: "SHIPPED"
     })).resolves.toContain("已确认收货");
     await expect(service.submitReview({
-      orderItemId: "item-e2e-review-desktop",
+      orderItemId: "item-2",
       rating: 5,
       content: "很适合桌面学习。"
     })).resolves.toContain("评价已提交");
-    expect(getDemoOrder("MO20260527009")?.items[0]).toMatchObject({
-      id: "item-e2e-review-desktop",
+    expect(getDemoOrder("MO20260527008")?.items[0]).toMatchObject({
+      id: "item-2",
       reviewed: true
     });
     await expect(service.createAfterSale({
-      orderItemId: "item-2",
+      userId: "user-e2e-after-sale-desktop",
+      orderItemId: "item-e2e-after-sale-desktop",
       type: "EXCHANGE",
       reason: "颜色与预期不符",
       description: "希望换成黑色款。"
     })).resolves.toContain("售后申请已提交");
-    expect(listDemoAfterSales().find((item) => item.orderItemId === "item-2")).toMatchObject({
+    expect(listDemoAfterSales().find((item) => item.orderItemId === "item-e2e-after-sale-desktop")).toMatchObject({
       status: "REQUESTED",
       reason: "颜色与预期不符"
     });
