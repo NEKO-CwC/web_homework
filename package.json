@@ -15,7 +15,8 @@
     "prisma:generate": "pnpm --filter @minimal-mall/db prisma:generate",
     "prisma:migrate": "pnpm --filter @minimal-mall/db prisma:migrate",
     "db:seed": "pnpm --filter @minimal-mall/db db:seed",
-    "db:verify": "pnpm --filter @minimal-mall/db db:verify"
+    "db:verify": "pnpm --filter @minimal-mall/db db:verify",
+    "prisma:smoke": "pnpm --filter @minimal-mall/storefront prisma:smoke"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.0",

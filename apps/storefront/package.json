@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
-    "ui:screenshots": "playwright test e2e/smoke.spec.ts --project=chromium --grep @screenshots"
+    "ui:screenshots": "playwright test e2e/smoke.spec.ts --project=chromium --grep @screenshots",
+    "prisma:smoke": "tsx scripts/prisma-business-smoke.ts"
   },
   "dependencies": {
     "@minimal-mall/auth": "workspace:*",
@@ -32,6 +33,7 @@
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
-    "eslint-config-next": "^15.3.3"
+    "eslint-config-next": "^15.3.3",
+    "tsx": "^4.22.3"
   }
 }

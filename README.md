@@ -63,9 +63,12 @@ pnpm prisma:generate
 pnpm --filter @minimal-mall/db exec prisma migrate deploy --schema prisma/schema.prisma
 pnpm db:seed
 pnpm db:verify
+pnpm prisma:smoke
 ```
 
 默认 `MALL_WRITE_MODE=demo` 使用内置 seed/fixture 演示数据，便于无数据库运行页面。配置 PostgreSQL 并完成 migrate/seed 后，可将 `.env` 中的 `MALL_WRITE_MODE` 改为 `prisma`，Server Actions 会写入真实 Prisma 数据库，覆盖购物车、结算支付、确认收货、评价、售后、开店申请、商品发布、商家发货、商家审核、首页配置和系统配置。
+
+`pnpm prisma:smoke` 会在当前 `DATABASE_URL` 指向的 schema 中创建临时顾客，执行真实 Prisma 写路径的下单、虚拟支付、商家发货、确认收货和评价，然后清理临时用户、订单、审计记录并恢复商品库存。
 
 ## 演示账号
 
