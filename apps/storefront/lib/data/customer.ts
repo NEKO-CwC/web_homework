@@ -1,5 +1,5 @@
 import { isProductPurchasable } from "@minimal-mall/auth";
-import { cartLines, currentCustomer } from "../fixtures";
+import { cartLines } from "../fixtures";
 import {
   getDemoCustomerProfile,
   getDemoOrderProduct,
@@ -26,7 +26,19 @@ export async function getCurrentCustomerProfile(userId = CURRENT_CUSTOMER_ID) {
       where: { userId },
       include: { user: true }
     });
-    if (!profile) return currentCustomer;
+    if (!profile) {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { email: true, phone: true }
+      });
+      return {
+        id: userId,
+        nickname: "",
+        email: user?.email ?? "",
+        phone: user?.phone ?? "",
+        defaultAddress: ""
+      };
+    }
     return {
       id: profile.userId,
       nickname: profile.nickname,
