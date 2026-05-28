@@ -18,6 +18,10 @@ import {
   listAuditLogs,
   listMerchantApplicationsPage
 } from "../data/admin";
+import {
+  listCartItems,
+  listCustomerOrders
+} from "../data/customer";
 import { DemoMallWriteService, PrismaMallWriteService } from "./mall-service";
 
 function createMockDb() {
@@ -127,7 +131,9 @@ describe("DemoMallWriteService", () => {
       receiver: "林一",
       phone: "13800000001",
       address: "江西省南昌市红谷滩区学府大道 999 号",
-      paymentMethod: "fail"
+      paymentMethod: "fail",
+      productId: "prod-charger",
+      quantity: 1
     })).resolves.toContain("待支付");
     await expect(service.retryPayment({
       orderNo: "MO20260524003",
@@ -401,6 +407,94 @@ describe("DemoMallWriteService", () => {
     });
   });
 
+  it("keeps demo cart and checkout orders visible to customer and merchant reads", async () => {
+    await expect(service.addCartItem({
+      userId: "user-new-cart",
+      productId: "prod-cardcase",
+      productName: "真皮卡包",
+      stock: 42
+    })).resolves.toMatchObject({
+      cartDelta: "1",
+      message: "已加入购物车：真皮卡包"
+    });
+    await expect(listCartItems("user-new-cart")).resolves.toEqual([
+      expect.objectContaining({
+        productId: "prod-cardcase",
+        quantity: 1,
+        product: expect.objectContaining({ name: "真皮卡包" })
+      })
+    ]);
+    const [newLine] = await listCartItems("user-new-cart");
+
+    await expect(service.updateCartQuantity({
+      userId: "user-new-cart",
+      cartItemId: newLine.id,
+      quantity: 3
+    })).resolves.toContain("3");
+    await expect(listCartItems("user-new-cart")).resolves.toEqual([
+      expect.objectContaining({ quantity: 3 })
+    ]);
+    await expect(service.updateCartQuantity({
+      userId: "other-user",
+      cartItemId: newLine.id,
+      quantity: 1
+    })).rejects.toThrow("购物车商品不存在或无权修改");
+
+    await expect(service.checkout({
+      userId: "user-new-cart",
+      receiver: "新顾客",
+      phone: "13800000077",
+      address: "江西省南昌市红谷滩区演示路 77 号",
+      paymentMethod: "balance"
+    })).resolves.toMatch(/虚拟支付成功，订单 MO\d+ 已进入待发货/);
+    await expect(listCartItems("user-new-cart")).resolves.toEqual([]);
+    await expect(listCustomerOrders("user-new-cart")).resolves.toEqual([
+      expect.objectContaining({
+        status: "TO_SHIP",
+        totalAmountCents: 34700,
+        itemsWithProducts: [
+          expect.objectContaining({
+            productId: "prod-cardcase",
+            quantity: 3,
+            product: expect.objectContaining({ name: "真皮卡包" })
+          })
+        ]
+      })
+    ]);
+    expect(getDemoProduct("prod-cardcase")).toMatchObject({
+      stock: 39
+    });
+
+    await expect(service.checkout({
+      userId: "user-direct-fail",
+      receiver: "失败顾客",
+      phone: "13800000078",
+      address: "江西省南昌市红谷滩区演示路 78 号",
+      paymentMethod: "fail",
+      productId: "prod-tote",
+      quantity: 2
+    })).resolves.toMatch(/虚拟支付失败，订单 MO\d+ 已保持待支付/);
+    const [pendingOrder] = await listCustomerOrders("user-direct-fail");
+    expect(pendingOrder).toMatchObject({
+      status: "PENDING_PAYMENT",
+      totalAmountCents: 49800
+    });
+    expect(getDemoProduct("prod-tote")).toMatchObject({
+      stock: 31
+    });
+    await expect(service.retryPayment({
+      userId: "user-direct-fail",
+      orderNo: pendingOrder.orderNo,
+      paymentMethod: "balance"
+    })).resolves.toContain("待发货");
+    await expect(listCustomerOrders("user-direct-fail")).resolves.toEqual([
+      expect.objectContaining({ status: "TO_SHIP" })
+    ]);
+    expect(getDemoProduct("prod-tote")).toMatchObject({
+      stock: 29
+    });
+  });
+
   it("writes demo audit logs for critical admin and merchant actions", async () => {
     const shipment = await service.createShipment({
       actorId: "merchant-1",
@@ -506,7 +600,7 @@ describe("DemoMallWriteService", () => {
     await expect(service.addCartItem({
       productName: "空气感智能台灯",
       stock: 1
-    })).resolves.toMatchObject({ cartDelta: "1" });
+    })).resolves.toMatchObject({ message: "已加入购物车：空气感智能台灯" });
     await expect(service.updateCartQuantity({
       cartItemId: "cart-1",
       quantity: 2

@@ -12,9 +12,11 @@ import {
 } from "@minimal-mall/auth";
 import type { AfterSaleType, BannerStatus, OrderStatus, ProductStatus, StoreStatus, UserRole } from "@minimal-mall/types";
 import {
+  addDemoCartLine,
   appendDemoAuditLog,
   confirmDemoOrderReceive,
   createDemoAfterSale,
+  createDemoCheckoutOrder,
   createDemoMerchantApplication,
   createDemoShipment,
   createDemoStore,
@@ -22,12 +24,14 @@ import {
   listDemoStores,
   publishDemoProduct,
   registerDemoCustomer,
+  removeDemoCartLine,
   saveDemoCustomerProfile,
   getDemoSystemSetting,
   markDemoOrderItemReviewed,
   retryDemoOrderPayment,
   saveDemoHomeBanner,
   updateDemoAfterSale,
+  updateDemoCartQuantity,
   updateDemoMerchantApplication,
   updateDemoProduct,
   updateDemoProductStatus,
@@ -360,35 +364,38 @@ export class DemoMallWriteService implements MallWriteService {
 
   async addCartItem(input: { userId?: string; productId?: string; productName: string; stock: number }) {
     if (input.stock < 1) throw new Error("库存不足，无法加入购物车");
-    return { message: `已加入购物车：${input.productName}`, cartDelta: "1" };
+    const result = addDemoCartLine({
+      userId: input.userId,
+      productId: input.productId,
+      productName: input.productName
+    });
+    return { message: `已加入购物车：${result.productName}`, cartDelta: result.cartDelta };
   }
 
   async updateCartQuantity(input: { userId?: string; cartItemId: string; quantity: number }) {
-    void input.userId;
     if (input.quantity < 1) throw new Error("购物车数量不能小于 1");
+    updateDemoCartQuantity(input);
     return `购物车数量已更新为 ${input.quantity}`;
   }
 
   async removeCartItem(input: { userId?: string; cartItemId: string }) {
-    void input;
-    return "购物车商品已删除";
+    const result = removeDemoCartLine(input);
+    return `已删除购物车商品：${result.productName}`;
   }
 
   async checkout(input: CheckoutInput) {
     validateCheckoutInput(input);
     const paymentSucceeded = input.paymentMethod !== "fail";
-    const nextStatus = nextOrderStatusAfterPayment(paymentSucceeded);
-    const orderNo = paymentSucceeded ? "MO20260528099" : "MO20260528098";
+    const order = createDemoCheckoutOrder(input);
     return paymentSucceeded
-      ? `虚拟支付成功，订单 ${orderNo} 已进入${nextStatus === "TO_SHIP" ? "待发货" : "待支付"}`
-      : `虚拟支付失败，订单 ${orderNo} 已保持待支付，可在订单页重试`;
+      ? `虚拟支付成功，订单 ${order.orderNo} 已进入${order.status === "TO_SHIP" ? "待发货" : "待支付"}`
+      : `虚拟支付失败，订单 ${order.orderNo} 已保持待支付，可在订单页重试`;
   }
 
   async retryPayment(input: { userId?: string; orderNo: string; paymentMethod: string }) {
     validatePaymentRetryInput(input);
-    void input.userId;
     void input.paymentMethod;
-    retryDemoOrderPayment(input.orderNo);
+    retryDemoOrderPayment({ orderNo: input.orderNo, userId: input.userId });
     return `虚拟支付成功，订单 ${input.orderNo} 已进入待发货`;
   }
 

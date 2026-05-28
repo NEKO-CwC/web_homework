@@ -3,6 +3,7 @@ import {
   canReviewOrderItem,
   nextAfterSaleStatus,
   nextMerchantApplicationStatus,
+  nextOrderStatusAfterPayment,
   nextOrderStatusAfterReceive,
   isProductPurchasable,
   nextOrderStatusAfterShipment
@@ -13,6 +14,7 @@ import type {
   AfterSaleType,
   AuditLog,
   BannerStatus,
+  CartLine,
   HomeBanner,
   MerchantApplication,
   Order,
@@ -23,7 +25,8 @@ import type {
   StoreStatus,
   SystemSetting
 } from "@minimal-mall/types";
-import { afterSales, auditLogs, banners, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
+import { afterSales, auditLogs, banners, cartLines, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
+import { checkoutTotalCents } from "./format";
 
 export interface DemoCustomerProfile {
   id: string;
@@ -34,10 +37,15 @@ export interface DemoCustomerProfile {
   passwordHash?: string;
 }
 
+interface DemoCartLine extends CartLine {
+  userId: string;
+}
+
 interface DemoStateStore {
   afterSales: AfterSaleRequest[];
   auditLogs: AuditLog[];
   banners: HomeBanner[];
+  cartLines: DemoCartLine[];
   customerProfiles: DemoCustomerProfile[];
   merchantApplications: MerchantApplication[];
   orders: Order[];
@@ -53,6 +61,7 @@ function createDemoStateStore(): DemoStateStore {
     afterSales: cloneAfterSales(afterSales),
     auditLogs: cloneAuditLogs(auditLogs),
     banners: banners.map((banner) => ({ ...banner })),
+    cartLines: cloneCartLines(cartLines.map((line) => ({ ...line, userId: currentCustomer.id }))),
     customerProfiles: [cloneCustomerProfile(currentCustomer)],
     merchantApplications: cloneMerchantApplications(merchantApplications),
     orders: cloneOrders(orders),
@@ -95,6 +104,10 @@ function cloneAuditLogs(value: AuditLog[]) {
   return value.map((item) => ({ ...item }));
 }
 
+function cloneCartLines(value: DemoCartLine[]) {
+  return value.map((item) => ({ ...item }));
+}
+
 function cloneMerchantApplications(value: MerchantApplication[]) {
   return value.map((item) => ({ ...item }));
 }
@@ -119,8 +132,40 @@ function formatDemoTimestamp(value = new Date()) {
   return `${year}-${month}-${day} ${hour}:${minute}`;
 }
 
+function makeDemoBusinessNo(prefix: "MO") {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+    String(now.getMilliseconds()).padStart(3, "0")
+  ].join("");
+  const suffix = String(Math.floor(Math.random() * 10_000)).padStart(4, "0");
+  return `${prefix}${timestamp}${suffix}`;
+}
+
 function assertDemoStoreOwnership(store: Store, actorId?: string, message = "只能维护自己的店铺") {
   if (actorId && actorId !== "admin-1" && store.ownerId !== actorId) throw new Error(message);
+}
+
+function findDemoPurchasableProduct(productId?: string, productName?: string) {
+  const store = getDemoStateStore();
+  const product = productId
+    ? store.products.find((item) => item.id === productId)
+    : store.products.find((item) => item.name === productName);
+  if (!product) throw new Error("商品不存在，无法加入购物车");
+  const productStore = store.stores.find((item) => item.id === product.storeId);
+  if (!isProductPurchasable({
+    status: product.status,
+    stock: product.stock,
+    storeStatus: productStore?.status ?? "FROZEN"
+  })) {
+    throw new Error("库存不足或店铺冻结，无法加入购物车");
+  }
+  return product;
 }
 
 export function listDemoHomeBanners({ onlineOnly = false } = {}): HomeBanner[] {
@@ -237,6 +282,79 @@ export function getDemoStore(id: string): Store | undefined {
 export function getDemoOrderProduct(order: Order): Product | undefined {
   const firstItem = order.items[0];
   return firstItem ? getDemoProduct(firstItem.productId) : undefined;
+}
+
+export function listDemoCartLines(userId = currentCustomer.id): CartLine[] {
+  return getDemoStateStore().cartLines
+    .filter((line) => line.userId === userId)
+    .map((line) => ({
+      id: line.id,
+      productId: line.productId,
+      quantity: line.quantity
+    }));
+}
+
+export function addDemoCartLine(input: {
+  userId?: string;
+  productId?: string;
+  productName: string;
+}): { productName: string; cartDelta: string } {
+  const store = getDemoStateStore();
+  const userId = input.userId ?? currentCustomer.id;
+  const product = findDemoPurchasableProduct(input.productId, input.productName);
+  const existing = store.cartLines.find((line) => line.userId === userId && line.productId === product.id);
+  if (existing && existing.quantity >= product.stock) throw new Error("购物车数量已达到库存上限");
+  if (existing) {
+    existing.quantity += 1;
+    return { productName: product.name, cartDelta: "0" };
+  }
+
+  store.cartLines = [
+    ...store.cartLines,
+    {
+      id: `cart-demo-${store.cartLines.length + 1}`,
+      userId,
+      productId: product.id,
+      quantity: 1
+    }
+  ];
+  return { productName: product.name, cartDelta: "1" };
+}
+
+export function updateDemoCartQuantity(input: {
+  userId?: string;
+  cartItemId: string;
+  quantity: number;
+}): CartLine {
+  const store = getDemoStateStore();
+  const userId = input.userId ?? currentCustomer.id;
+  const line = store.cartLines.find((item) => item.id === input.cartItemId);
+  if (!line || line.userId !== userId) throw new Error("购物车商品不存在或无权修改");
+  const product = store.products.find((item) => item.id === line.productId);
+  if (!product) throw new Error("商品不存在，无法修改数量");
+  if (product.stock < 1) throw new Error("商品已缺货，无法修改数量");
+  if (input.quantity > product.stock) throw new Error("购物车数量不能超过库存");
+
+  line.quantity = input.quantity;
+  return {
+    id: line.id,
+    productId: line.productId,
+    quantity: line.quantity
+  };
+}
+
+export function removeDemoCartLine(input: {
+  userId?: string;
+  cartItemId: string;
+}): { productName: string } {
+  const store = getDemoStateStore();
+  const userId = input.userId ?? currentCustomer.id;
+  const index = store.cartLines.findIndex((line) => line.id === input.cartItemId);
+  const line = index >= 0 ? store.cartLines[index] : undefined;
+  if (!line || line.userId !== userId) throw new Error("购物车商品不存在或无权删除");
+  const product = store.products.find((item) => item.id === line.productId);
+  store.cartLines = store.cartLines.filter((item) => item.id !== input.cartItemId);
+  return { productName: product?.name ?? "未知商品" };
 }
 
 export function publishDemoProduct(input: {
@@ -448,9 +566,108 @@ export function getDemoOrder(orderNo: string): Order | undefined {
   return order ? cloneOrders([order])[0] : undefined;
 }
 
-export function retryDemoOrderPayment(orderNo: string): Order {
+export function retryDemoOrderPayment(input: { orderNo: string; userId?: string }): Order {
+  const { orderNo, userId } = input;
   const order = getDemoStateStore().orders.find((item) => item.orderNo === orderNo);
   if (!order) throw new Error("订单不存在，无法继续支付");
+  if (userId && order.userId !== userId) throw new Error("只能支付自己的订单");
+  if (order.status !== "PENDING_PAYMENT") throw new Error("只有待支付订单可以继续支付");
+
+  const store = getDemoStateStore();
+  for (const line of order.items) {
+    const product = store.products.find((item) => item.id === line.productId);
+    const productStore = product ? store.stores.find((item) => item.id === product.storeId) : undefined;
+    if (!product || !isProductPurchasable({
+      status: product.status,
+      stock: product.stock,
+      storeStatus: productStore?.status ?? "FROZEN"
+    }) || line.quantity > product.stock) {
+      throw new Error(`商品 ${product?.name ?? line.productId} 库存不足，无法继续支付`);
+    }
+  }
+
+  for (const line of order.items) {
+    const product = store.products.find((item) => item.id === line.productId);
+    if (!product) continue;
+    product.stock -= line.quantity;
+    if (product.stock === 0) product.status = "SOLD_OUT";
+  }
+  order.status = nextOrderStatusAfterPayment(true);
+  order.items = order.items.map((item) => ({ ...item, status: order.status }));
+  return cloneOrders([order])[0];
+}
+
+export function createDemoCheckoutOrder(input: {
+  userId?: string;
+  receiver: string;
+  phone: string;
+  address: string;
+  paymentMethod: string;
+  productId?: string;
+  quantity?: number;
+}): Order {
+  const store = getDemoStateStore();
+  const userId = input.userId ?? currentCustomer.id;
+  const paymentSucceeded = input.paymentMethod !== "fail";
+  const nextStatus = nextOrderStatusAfterPayment(paymentSucceeded);
+  const directProductId = input.productId?.trim();
+  const checkoutItems = directProductId
+    ? [{
+        productId: directProductId,
+        quantity: input.quantity ?? 1
+      }]
+    : store.cartLines
+        .filter((line) => line.userId === userId)
+        .map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity
+        }));
+  if (checkoutItems.length === 0) throw new Error("购物车为空，无法结算");
+
+  const orderItems = checkoutItems.map((line, index) => {
+    const product = store.products.find((item) => item.id === line.productId);
+    const productStore = product ? store.stores.find((item) => item.id === product.storeId) : undefined;
+    if (!product || !isProductPurchasable({
+      status: product.status,
+      stock: product.stock,
+      storeStatus: productStore?.status ?? "FROZEN"
+    }) || line.quantity > product.stock) {
+      throw new Error(`商品 ${product?.name ?? line.productId} 库存不足，无法结算`);
+    }
+    return {
+      id: `item-demo-${store.orders.length + 1}-${index + 1}`,
+      productId: product.id,
+      storeId: product.storeId,
+      priceCents: product.priceCents,
+      quantity: line.quantity,
+      reviewed: false
+    };
+  });
+  const totalAmountCents = checkoutTotalCents(
+    orderItems.reduce((sum, line) => sum + line.priceCents * line.quantity, 0)
+  );
+  const order: Order = {
+    id: `order-demo-${store.orders.length + 1}`,
+    orderNo: makeDemoBusinessNo("MO"),
+    userId,
+    status: nextStatus,
+    totalAmountCents,
+    addressSnapshot: `${input.receiver}，${input.phone}，${input.address}`,
+    items: orderItems
+  };
+  store.orders = [order, ...store.orders];
+
+  if (paymentSucceeded) {
+    for (const line of orderItems) {
+      const product = store.products.find((item) => item.id === line.productId);
+      if (!product) continue;
+      product.stock -= line.quantity;
+      if (product.stock === 0) product.status = "SOLD_OUT";
+    }
+  }
+  if (!directProductId) {
+    store.cartLines = store.cartLines.filter((line) => line.userId !== userId);
+  }
   return cloneOrders([order])[0];
 }
 
@@ -675,6 +892,7 @@ export function resetDemoState() {
   store.afterSales = cloneAfterSales(afterSales);
   store.auditLogs = cloneAuditLogs(auditLogs);
   store.banners = banners.map((banner) => ({ ...banner }));
+  store.cartLines = cloneCartLines(cartLines.map((line) => ({ ...line, userId: currentCustomer.id })));
   store.customerProfiles = [cloneCustomerProfile(currentCustomer)];
   store.merchantApplications = cloneMerchantApplications(merchantApplications);
   store.orders = cloneOrders(orders);

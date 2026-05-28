@@ -1,10 +1,10 @@
 import { isProductPurchasable } from "@minimal-mall/auth";
-import { cartLines } from "../fixtures";
 import {
   getDemoCustomerProfile,
   getDemoOrderProduct,
   getDemoProduct,
   getDemoStore,
+  listDemoCartLines,
   listDemoAfterSales,
   listDemoOrders
 } from "../demo-state";
@@ -71,7 +71,7 @@ export async function listCartItems(userId = CURRENT_CUSTOMER_ID) {
       product: mapProduct(line.product)
     }));
   }
-  return cartLines
+  return listDemoCartLines(userId)
     .map((line) => {
       const product = getDemoProduct(line.productId);
       return product ? { ...line, product } : null;
