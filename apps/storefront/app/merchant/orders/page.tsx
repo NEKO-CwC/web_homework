@@ -92,6 +92,7 @@ export default async function MerchantOrdersPage({
                     {order.status === "TO_SHIP" ? (
                       <ActionForm action={createShipmentAction} submitLabel="生成运单">
                         <input type="hidden" name="orderNo" value={order.orderNo} />
+                        <input type="hidden" name="storeId" value={store.id} />
                         <input type="hidden" name="status" value={order.status} />
                       </ActionForm>
                     ) : (

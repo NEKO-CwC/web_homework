@@ -324,18 +324,20 @@ export function confirmDemoOrderReceive(input: { userId?: string; orderNo: strin
   return cloneOrders([order])[0];
 }
 
-export function createDemoShipment(input: { orderNo: string; status: OrderStatus; trackingNo: string }): Order {
+export function createDemoShipment(input: { orderNo: string; status: OrderStatus; storeId?: string; trackingNo: string }): Order {
   const order = getDemoStateStore().orders.find((item) => item.orderNo === input.orderNo);
   if (!order) throw new Error("订单不存在，无法生成运单");
   if (order.status !== input.status) throw new Error("订单状态已变化，请刷新后重试");
   if (order.shipment) throw new Error("该订单已有有效运单");
-  const firstItem = order.items[0];
-  if (!firstItem) throw new Error("订单没有商品，无法生成运单");
+  const targetItem = input.storeId
+    ? order.items.find((item) => item.storeId === input.storeId)
+    : order.items[0];
+  if (!targetItem) throw new Error(input.storeId ? "订单不包含当前店铺商品，无法生成运单" : "订单没有商品，无法生成运单");
   order.status = nextOrderStatusAfterShipment(input.status);
   order.shipment = {
     id: `ship-${order.id}`,
     orderId: order.id,
-    storeId: firstItem.storeId,
+    storeId: targetItem.storeId,
     trackingNo: input.trackingNo,
     status: "IN_TRANSIT",
     events: [

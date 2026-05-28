@@ -521,10 +521,12 @@ export async function storeStatusAction(_: ActionState, formData: FormData) {
 
 export async function createShipmentAction(_: ActionState, formData: FormData) {
   const orderNo = formValue(formData, "orderNo");
+  const storeId = formValue(formData, "storeId");
   const status = parseOrderStatus(formValue(formData, "status"));
   if (!status || !canCreateShipment(status)) return fail("只有待发货订单可以生成运单");
   const result = await getMallWriteService().createShipment({
     actorId: await requireActorId("merchant"),
+    storeId,
     orderNo,
     status
   });

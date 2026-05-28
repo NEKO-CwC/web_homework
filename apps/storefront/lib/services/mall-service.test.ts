@@ -1176,7 +1176,7 @@ describe("PrismaMallWriteService", () => {
       id: "order-1",
       orderNo: "MO20260528001",
       status: "TO_SHIP",
-      items: [{ storeId: "store-minimal", store: { ownerId: "merchant-1" } }],
+      items: [{ storeId: "store-minimal", status: "TO_SHIP", store: { ownerId: "merchant-1" } }],
       shipments: []
     });
     db.order.update.mockResolvedValue({});
@@ -1195,14 +1195,60 @@ describe("PrismaMallWriteService", () => {
     expect(db.order.update).toHaveBeenCalledWith(expect.objectContaining({
       data: { status: "SHIPPED" }
     }));
+    expect(db.orderItem.updateMany).toHaveBeenCalledWith({
+      where: { orderId: "order-1", storeId: "store-minimal" },
+      data: { status: "SHIPPED" }
+    });
     expect(db.shipment.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
+        storeId: "store-minimal",
         trackingNo: result.trackingNo,
         status: "IN_TRANSIT"
       })
     }));
     expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ action: "CREATE_SHIPMENT" })
+      data: expect.objectContaining({
+        action: "CREATE_SHIPMENT",
+        metadata: expect.objectContaining({ storeId: "store-minimal" })
+      })
+    }));
+  });
+
+  it("ships only the current merchant store items in a multi-store order", async () => {
+    const db = createMockDb();
+    db.order.findUnique.mockResolvedValue({
+      id: "order-multi",
+      orderNo: "MO20260528002",
+      status: "TO_SHIP",
+      items: [
+        { storeId: "store-home", status: "TO_SHIP", store: { ownerId: "merchant-2" } },
+        { storeId: "store-minimal", status: "TO_SHIP", store: { ownerId: "merchant-1" } }
+      ],
+      shipments: []
+    });
+    db.orderItem.updateMany.mockResolvedValue({});
+    db.shipment.create.mockResolvedValue({ id: "ship-current-store" });
+    db.auditLog.create.mockResolvedValue({});
+    const service = new PrismaMallWriteService(db as never);
+
+    const result = await service.createShipment({
+      actorId: "merchant-1",
+      storeId: "store-minimal",
+      orderNo: "MO20260528002",
+      status: "TO_SHIP"
+    });
+
+    expect(result.trackingNo).toMatch(/^VL-\d{4}-\d{4}$/);
+    expect(db.order.update).not.toHaveBeenCalled();
+    expect(db.orderItem.updateMany).toHaveBeenCalledWith({
+      where: { orderId: "order-multi", storeId: "store-minimal" },
+      data: { status: "SHIPPED" }
+    });
+    expect(db.shipment.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        storeId: "store-minimal",
+        trackingNo: result.trackingNo
+      })
     }));
   });
 
@@ -1219,6 +1265,7 @@ describe("PrismaMallWriteService", () => {
 
     await expect(service.createShipment({
       actorId: "merchant-1",
+      storeId: "store-home",
       orderNo: "MO20260528001",
       status: "TO_SHIP"
     })).rejects.toThrow("只能为自己店铺的订单生成运单");

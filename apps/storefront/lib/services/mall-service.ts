@@ -139,7 +139,7 @@ export interface MallWriteService {
   updateProduct(input: ProductUpdateInput): Promise<string>;
   updateProductStatus(input: { actorId?: string; productId: string; status: ProductStatus }): Promise<string>;
   updateStoreStatus(input: { actorId?: string; storeId: string; status: StoreStatus }): Promise<string>;
-  createShipment(input: { actorId?: string; orderNo: string; status: OrderStatus }): Promise<{ message: string; trackingNo: string }>;
+  createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }): Promise<{ message: string; trackingNo: string }>;
   handleAfterSale(input: { actorId?: string; afterSaleId?: string; action: "approve" | "reject"; reply: string }): Promise<string>;
   reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }): Promise<string>;
   saveHomeBanner(input: HomeBannerInput): Promise<string>;
@@ -313,9 +313,9 @@ export class DemoMallWriteService implements MallWriteService {
     return input.status === "FROZEN" ? "店铺已冻结" : "店铺已恢复经营";
   }
 
-  async createShipment(input: { actorId?: string; orderNo: string; status: OrderStatus }) {
+  async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
     const trackingNo = makeVirtualTrackingNo(input.orderNo);
-    createDemoShipment({ orderNo: input.orderNo, status: input.status, trackingNo });
+    createDemoShipment({ orderNo: input.orderNo, status: input.status, storeId: input.storeId, trackingNo });
     return { message: `虚拟运单已生成：${trackingNo}`, trackingNo };
   }
 
@@ -1040,7 +1040,7 @@ export class PrismaMallWriteService implements MallWriteService {
     return input.status === "FROZEN" ? "店铺已冻结" : "店铺已恢复经营";
   }
 
-  async createShipment(input: { actorId?: string; orderNo: string; status: OrderStatus }) {
+  async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
     const db = await this.getDb();
     const order = await db.order.findUnique({
       where: { orderNo: input.orderNo },
@@ -1051,29 +1051,40 @@ export class PrismaMallWriteService implements MallWriteService {
     });
     if (!order) throw new Error("订单不存在，无法生成运单");
     if (order.status !== input.status) throw new Error("订单状态已变化，请刷新后重试");
-    if (order.shipments.length > 0) throw new Error("该订单已有有效运单");
-
-    const nextStatus = nextOrderStatusAfterShipment(input.status);
-    const firstItem = order.items[0];
-    if (!firstItem) throw new Error("订单没有商品，无法生成运单");
-    if (input.actorId && firstItem.store.ownerId !== input.actorId) {
+    const targetItem = input.storeId
+      ? order.items.find((item) => item.storeId === input.storeId)
+      : order.items.find((item) => !input.actorId || item.store.ownerId === input.actorId);
+    if (!targetItem) throw new Error("订单不包含当前店铺商品，无法生成运单");
+    if (order.shipments.some((shipment) => shipment.storeId === targetItem.storeId)) {
+      throw new Error("该店铺订单已有有效运单");
+    }
+    if (input.actorId && targetItem.store.ownerId !== input.actorId) {
       throw new Error("只能为自己店铺的订单生成运单");
     }
+    if (!order.items.some((item) => item.storeId === targetItem.storeId && item.status === "TO_SHIP")) {
+      throw new Error("当前店铺没有待发货商品");
+    }
+    const nextStatus = nextOrderStatusAfterShipment(input.status);
+    const shouldAdvanceWholeOrder = !order.items.some((item) =>
+      item.storeId !== targetItem.storeId && item.status === "TO_SHIP"
+    );
     const trackingNo = makeVirtualTrackingNo(input.orderNo);
 
     await db.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: nextStatus }
-      });
+      if (shouldAdvanceWholeOrder) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: nextStatus }
+        });
+      }
       await tx.orderItem.updateMany({
-        where: { orderId: order.id },
+        where: { orderId: order.id, storeId: targetItem.storeId },
         data: { status: nextStatus }
       });
       const shipment = await tx.shipment.create({
         data: {
           orderId: order.id,
-          storeId: firstItem.storeId,
+          storeId: targetItem.storeId,
           trackingNo,
           status: "IN_TRANSIT",
           events: {
@@ -1091,7 +1102,7 @@ export class PrismaMallWriteService implements MallWriteService {
           action: "CREATE_SHIPMENT",
           targetType: "Order",
           targetId: order.id,
-          metadata: { trackingNo, shipmentId: shipment.id },
+          metadata: { trackingNo, shipmentId: shipment.id, storeId: targetItem.storeId },
           result: "SUCCESS",
           ipAddress: "127.0.0.1"
         }
