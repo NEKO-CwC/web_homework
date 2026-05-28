@@ -530,6 +530,13 @@ export class PrismaMallWriteService implements MallWriteService {
     if (!(await verifyPassword(input.password, user.passwordHash))) {
       throw new Error("账号或密码错误");
     }
+    const storeIds = user.role === "MERCHANT"
+      ? (await db.store.findMany({
+        where: { ownerId: user.id },
+        select: { id: true }
+      })).map((store) => store.id)
+      : [];
+
     if (user.role === "ADMIN") {
       await db.auditLog.create({
         data: {
@@ -554,7 +561,8 @@ export class PrismaMallWriteService implements MallWriteService {
         id: user.id,
         role: user.role,
         email: user.email,
-        phone: user.phone
+        phone: user.phone,
+        storeIds
       }
     };
   }

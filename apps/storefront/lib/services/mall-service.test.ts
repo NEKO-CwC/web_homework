@@ -73,6 +73,7 @@ function createMockDb() {
     store: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn(),
       create: vi.fn()
     },
@@ -652,6 +653,39 @@ describe("PrismaMallWriteService", () => {
         result: "SUCCESS",
         ipAddress: "127.0.0.1"
       }
+    });
+  });
+
+  it("returns merchant store ids in Prisma sessions", async () => {
+    const db = createMockDb();
+    db.user.findFirst.mockResolvedValue({
+      id: "merchant-1",
+      email: "merchant@example.com",
+      phone: "13800000003",
+      passwordHash: await hashPassword("12345678", "fixed-salt"),
+      role: "MERCHANT",
+      status: "ACTIVE"
+    });
+    db.store.findMany.mockResolvedValue([
+      { id: "store-minimal" },
+      { id: "store-home" }
+    ]);
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.login({
+      account: "merchant@example.com",
+      password: "12345678"
+    })).resolves.toMatchObject({
+      message: "登录成功，已进入商家中台",
+      user: {
+        id: "merchant-1",
+        role: "MERCHANT",
+        storeIds: ["store-minimal", "store-home"]
+      }
+    });
+    expect(db.store.findMany).toHaveBeenCalledWith({
+      where: { ownerId: "merchant-1" },
+      select: { id: true }
     });
   });
 
