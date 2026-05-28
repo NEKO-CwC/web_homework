@@ -65,6 +65,11 @@ function revalidatePaths(paths: string[]) {
   }
 }
 
+function revalidateProductDetailPages(productId?: string) {
+  if (productId) revalidatePath(`/products/${productId}`);
+  revalidatePath("/products/[id]", "page");
+}
+
 export async function loginAction(_: ActionState, formData: FormData) {
   const schema = z.object({
     account: z.string().min(1, "请输入手机号或邮箱"),
@@ -259,6 +264,7 @@ export async function checkoutAction(_: ActionState, formData: FormData) {
       ...parsed.data
     });
     revalidatePaths(["/", "/cart", "/checkout", "/orders", "/merchant/orders"]);
+    revalidateProductDetailPages();
     if (parsed.data.paymentMethod === "fail") return fail(message);
     return ok(message);
   } catch (error) {
@@ -284,6 +290,7 @@ export async function retryPaymentAction(_: ActionState, formData: FormData) {
       ...parsed.data
     });
     revalidatePaths(["/orders", "/merchant/orders", "/admin"]);
+    revalidateProductDetailPages();
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "支付重试失败");
@@ -327,6 +334,7 @@ export async function reviewAction(_: ActionState, formData: FormData) {
       ...parsed.data
     });
     revalidatePaths(["/", "/orders", "/after-sale"]);
+    revalidateProductDetailPages();
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "评价提交失败");
@@ -429,6 +437,7 @@ export async function productPublishAction(_: ActionState, formData: FormData) {
       description: parsed.data.description
     });
     revalidatePaths(["/", "/merchant/products"]);
+    revalidateProductDetailPages();
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "商品发布失败");
@@ -457,6 +466,7 @@ export async function saveStoreProfileAction(_: ActionState, formData: FormData)
       ...parsed.data
     });
     revalidatePaths(["/", "/merchant/products", "/admin/merchants"]);
+    revalidateProductDetailPages();
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "店铺资料保存失败");
@@ -499,7 +509,8 @@ export async function productUpdateAction(_: ActionState, formData: FormData) {
       imageUrl: parsed.data.imageUrl,
       description: parsed.data.description
     });
-    revalidatePaths(["/", "/merchant/products", `/products/${parsed.data.productId}`]);
+    revalidatePaths(["/", "/merchant/products"]);
+    revalidateProductDetailPages(parsed.data.productId);
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "商品资料保存失败");
@@ -516,7 +527,8 @@ export async function productStatusAction(_: ActionState, formData: FormData) {
       productId,
       status
     });
-    revalidatePaths(["/", "/cart", "/checkout", "/merchant/products", `/products/${productId}`]);
+    revalidatePaths(["/", "/cart", "/checkout", "/merchant/products"]);
+    revalidateProductDetailPages(productId);
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "商品状态修改失败");
@@ -534,6 +546,7 @@ export async function storeStatusAction(_: ActionState, formData: FormData) {
       status
     });
     revalidatePaths(["/", "/cart", "/checkout", "/admin/merchants", "/merchant/products"]);
+    revalidateProductDetailPages();
     return ok(message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "店铺状态修改失败");
