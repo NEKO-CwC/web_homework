@@ -4,7 +4,7 @@ import { ActionForm } from "@/app/components/ActionForm";
 import { PaginationControls } from "@/app/components/PaginationControls";
 import type { AuditLogFilters } from "@/lib/data";
 import { systemSettingAction } from "@/lib/actions";
-import { listAuditLogsPage, listSystemSettings } from "@/lib/data";
+import { listAuditLogsPage, listSystemServiceStatuses, listSystemSettings } from "@/lib/data";
 import { requireSessionUser } from "@/lib/session";
 
 export default async function AdminSystemPage({
@@ -35,8 +35,9 @@ export default async function AdminSystemPage({
     page: params?.auditPage,
     pageSize: 2
   };
-  const [settings, auditLogsPage] = await Promise.all([
+  const [settings, serviceStatuses, auditLogsPage] = await Promise.all([
     listSystemSettings(),
+    listSystemServiceStatuses(),
     listAuditLogsPage(filters)
   ]);
   const auditLogs = auditLogsPage.items;
@@ -49,21 +50,21 @@ export default async function AdminSystemPage({
         </div>
       </div>
       <div className="grid cols-3">
-        <Card className="panel">
-          <h3>虚拟支付</h3>
-          <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>支付模拟服务运行正常，流水写入成功。</p>
-          <StatusBadge tone="success">正常</StatusBadge>
-        </Card>
-        <Card className="panel">
-          <h3>虚拟运单</h3>
-          <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>运单队列存在轻微延迟，格式统一为 VL-0000-0000。</p>
-          <StatusBadge tone="warning">延迟</StatusBadge>
-        </Card>
-        <Card className="panel">
-          <h3>安全配置</h3>
-          <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>管理员审核、商家发货和售后处理都需要审计日志。</p>
-          <StatusBadge tone="accent">需巡检</StatusBadge>
-        </Card>
+        {serviceStatuses.map((status) => (
+          <Card className="panel" key={status.key}>
+            <h3>{status.title}</h3>
+            <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>{status.description}</p>
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+            <dl className="service-metrics" aria-label={`${status.title}服务指标`}>
+              {status.details.map((detail) => (
+                <div key={detail.label}>
+                  <dt>{detail.label}</dt>
+                  <dd>{detail.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        ))}
       </div>
 
       <section className="section-head">

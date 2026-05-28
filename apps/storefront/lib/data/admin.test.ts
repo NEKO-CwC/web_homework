@@ -19,6 +19,7 @@ import {
   listHomeBannersForAdmin,
   listMerchantApplications,
   listMerchantApplicationsPage,
+  listSystemServiceStatuses,
   listSystemSettings
 } from "./admin";
 
@@ -60,6 +61,60 @@ describe("admin data filters", () => {
 
     await expect(listSystemSettings()).resolves.toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "memberRegistration", value: "disabled" })
+    ]));
+  });
+
+  it("derives system service statuses from demo orders settings and audit logs", async () => {
+    await expect(listSystemServiceStatuses()).resolves.toEqual([
+      expect.objectContaining({
+        key: "payment",
+        title: "虚拟支付",
+        label: "正常",
+        description: expect.stringContaining("已完成 12 笔虚拟支付"),
+        details: expect.arrayContaining([
+          { label: "成功流水", value: "12" },
+          { label: "待支付", value: "1" }
+        ])
+      }),
+      expect.objectContaining({
+        key: "shipment",
+        title: "虚拟运单",
+        label: "待生成",
+        description: expect.stringContaining("3 笔待发货订单"),
+        details: expect.arrayContaining([
+          { label: "运单总数", value: "6" },
+          { label: "运输中", value: "5" },
+          { label: "已签收", value: "1" }
+        ])
+      }),
+      expect.objectContaining({
+        key: "audit",
+        title: "审计与缓存",
+        label: "已记录",
+        description: expect.stringContaining("最近操作：刷新首页缓存"),
+        details: expect.arrayContaining([
+          { label: "异常记录", value: "0" },
+          { label: "缓存版本", value: "1" }
+        ])
+      })
+    ]);
+
+    updateDemoSystemSetting("homeCacheVersion", "2");
+    appendDemoAuditLog({
+      actorRole: "ADMIN",
+      action: "缓存刷新验收",
+      targetType: "SystemSetting",
+      targetId: "homeCacheVersion"
+    });
+
+    await expect(listSystemServiceStatuses()).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "audit",
+        description: expect.stringContaining("最近操作：缓存刷新验收"),
+        details: expect.arrayContaining([
+          { label: "缓存版本", value: "2" }
+        ])
+      })
     ]));
   });
 

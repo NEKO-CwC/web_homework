@@ -4,6 +4,7 @@ import {
   listDemoAfterSales,
   listDemoHomeBanners,
   listDemoMerchantApplications,
+  listDemoOrders,
   listDemoStores,
   listDemoSystemSettings
 } from "../demo-state";
@@ -17,6 +18,18 @@ import {
   mapStore
 } from "./db";
 import { normalizePagination, paginateArray, type PaginationInput } from "./pagination";
+
+export interface SystemServiceStatus {
+  key: "payment" | "shipment" | "audit";
+  title: string;
+  description: string;
+  label: string;
+  tone: "success" | "warning" | "danger" | "accent" | "muted";
+  details: {
+    label: string;
+    value: string;
+  }[];
+}
 
 export async function getAdminOverview() {
   if (isPrismaDataMode()) {
@@ -206,6 +219,140 @@ export async function listSystemSettings() {
     return rows.map(mapSetting);
   }
   return listDemoSystemSettings();
+}
+
+function buildSystemServiceStatuses(input: {
+  successfulPaymentCount: number;
+  pendingPaymentCount: number;
+  failedPaymentCount: number;
+  shipmentCount: number;
+  pendingShipmentOrderCount: number;
+  inTransitShipmentCount: number;
+  deliveredShipmentCount: number;
+  auditLogCount: number;
+  failedAuditLogCount: number;
+  latestAuditAction: string;
+  homeCacheVersion: string;
+}): SystemServiceStatus[] {
+  const paymentTotal = input.successfulPaymentCount + input.pendingPaymentCount + input.failedPaymentCount;
+  const paymentNeedsAttention = paymentTotal === 0 || input.failedPaymentCount > input.successfulPaymentCount;
+  const shipmentNeedsAttention = input.shipmentCount === 0 || input.pendingShipmentOrderCount > 0;
+  const auditNeedsAttention = input.auditLogCount === 0 || input.failedAuditLogCount > 0;
+
+  return [
+    {
+      key: "payment",
+      title: "虚拟支付",
+      label: paymentNeedsAttention ? "需关注" : "正常",
+      tone: paymentNeedsAttention ? "warning" : "success",
+      description: paymentTotal === 0
+        ? "暂无虚拟支付流水，完成一次结算后会更新服务状态。"
+        : `已完成 ${input.successfulPaymentCount} 笔虚拟支付，${input.pendingPaymentCount} 笔待支付可在订单页重试。`,
+      details: [
+        { label: "成功流水", value: `${input.successfulPaymentCount}` },
+        { label: "待支付", value: `${input.pendingPaymentCount}` },
+        { label: "失败保留", value: `${input.failedPaymentCount}` }
+      ]
+    },
+    {
+      key: "shipment",
+      title: "虚拟运单",
+      label: shipmentNeedsAttention ? "待生成" : "正常",
+      tone: shipmentNeedsAttention ? "warning" : "success",
+      description: input.shipmentCount === 0
+        ? "暂无虚拟运单记录，商家发货后会生成 VL-0000-0000 格式运单。"
+        : `已生成 ${input.shipmentCount} 张虚拟运单，${input.pendingShipmentOrderCount} 笔待发货订单需要商家处理。`,
+      details: [
+        { label: "运单总数", value: `${input.shipmentCount}` },
+        { label: "运输中", value: `${input.inTransitShipmentCount}` },
+        { label: "已签收", value: `${input.deliveredShipmentCount}` }
+      ]
+    },
+    {
+      key: "audit",
+      title: "审计与缓存",
+      label: auditNeedsAttention ? "需巡检" : "已记录",
+      tone: auditNeedsAttention ? "accent" : "success",
+      description: input.auditLogCount === 0
+        ? "暂无审计记录，关键管理操作完成后会写入日志。"
+        : `已记录 ${input.auditLogCount} 条审计日志，最近操作：${input.latestAuditAction}。`,
+      details: [
+        { label: "异常记录", value: `${input.failedAuditLogCount}` },
+        { label: "缓存版本", value: input.homeCacheVersion },
+        { label: "日志来源", value: "审计表" }
+      ]
+    }
+  ];
+}
+
+export async function listSystemServiceStatuses(): Promise<SystemServiceStatus[]> {
+  if (isPrismaDataMode()) {
+    const db = await getPrismaClient();
+    const [
+      successfulPaymentCount,
+      pendingPaymentCount,
+      failedPaymentCount,
+      shipmentCount,
+      pendingShipmentOrderCount,
+      inTransitShipmentCount,
+      deliveredShipmentCount,
+      auditLogCount,
+      failedAuditLogCount,
+      latestAuditLog,
+      homeCacheSetting
+    ] = await Promise.all([
+      db.payment.count({ where: { status: "SUCCESS" } }),
+      db.payment.count({ where: { status: "PENDING" } }),
+      db.payment.count({ where: { status: "FAILED" } }),
+      db.shipment.count(),
+      db.order.count({ where: { status: "TO_SHIP" } }),
+      db.shipment.count({ where: { status: "IN_TRANSIT" } }),
+      db.shipment.count({ where: { status: "DELIVERED" } }),
+      db.auditLog.count(),
+      db.auditLog.count({ where: { result: "FAILED" } }),
+      db.auditLog.findFirst({
+        include: { actor: true },
+        orderBy: { createdAt: "desc" }
+      }),
+      db.systemSetting.findUnique({ where: { key: "homeCacheVersion" } })
+    ]);
+
+    return buildSystemServiceStatuses({
+      successfulPaymentCount,
+      pendingPaymentCount,
+      failedPaymentCount,
+      shipmentCount,
+      pendingShipmentOrderCount,
+      inTransitShipmentCount,
+      deliveredShipmentCount,
+      auditLogCount,
+      failedAuditLogCount,
+      latestAuditAction: latestAuditLog ? mapAuditLog(latestAuditLog).action : "暂无记录",
+      homeCacheVersion: homeCacheSetting?.value ?? "未配置"
+    });
+  }
+
+  const orders = listDemoOrders();
+  const auditLogs = listDemoAuditLogs();
+  const homeCacheVersion = listDemoSystemSettings().find((setting) => setting.key === "homeCacheVersion")?.value ?? "未配置";
+  const shipments = orders.flatMap((order) => order.shipment ? [order.shipment] : []);
+  const successfulPaymentCount = orders.filter((order) => !["PENDING_PAYMENT", "CANCELLED"].includes(order.status)).length;
+  const pendingPaymentCount = orders.filter((order) => order.status === "PENDING_PAYMENT").length;
+  const latestAuditLog = [...auditLogs].sort((left, right) => auditLogTimestamp(right) - auditLogTimestamp(left))[0];
+
+  return buildSystemServiceStatuses({
+    successfulPaymentCount,
+    pendingPaymentCount,
+    failedPaymentCount: 0,
+    shipmentCount: shipments.length,
+    pendingShipmentOrderCount: orders.filter((order) => order.status === "TO_SHIP").length,
+    inTransitShipmentCount: shipments.filter((shipment) => shipment.status === "IN_TRANSIT").length,
+    deliveredShipmentCount: shipments.filter((shipment) => shipment.status === "DELIVERED").length,
+    auditLogCount: auditLogs.length,
+    failedAuditLogCount: auditLogs.filter((log) => log.result === "FAILED").length,
+    latestAuditAction: latestAuditLog?.action ?? "暂无记录",
+    homeCacheVersion
+  });
 }
 
 export interface AuditLogFilters {

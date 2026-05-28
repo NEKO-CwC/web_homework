@@ -809,6 +809,12 @@ test("administrator can edit home banner status and system settings", async ({ p
   await expect(page.getByText("首页配置已保存")).toBeVisible();
 
   await page.goto("/admin/system");
+  await expect(page.getByText("已完成 12 笔虚拟支付")).toBeVisible();
+  await expect(page.getByLabel("虚拟支付服务指标")).toContainText("成功流水");
+  await expect(page.getByText("3 笔待发货订单需要商家处理")).toBeVisible();
+  await expect(page.getByLabel("虚拟运单服务指标")).toContainText("运单总数");
+  await expect(page.getByText("最近操作：HOME_BANNER_SAVE")).toBeVisible();
+  await expect(page.getByLabel("审计与缓存服务指标")).toContainText("缓存版本");
   await saveSystemSetting(page, "会员注册开关", "disabled");
 
   await page.goto("/account");
@@ -835,6 +841,11 @@ test("administrator can edit home banner status and system settings", async ({ p
 
   await page.goto("/admin/system");
   await saveSystemSetting(page, "商家入驻人工审核", "required");
+  const cacheRow = page.locator(".row").filter({ hasText: "首页缓存版本" });
+  await cacheRow.getByRole("button", { name: "刷新缓存" }).click();
+  await expect(cacheRow.getByText("系统配置已更新")).toBeVisible();
+  await expect(page.getByLabel("审计与缓存服务指标")).toContainText("缓存版本");
+  await expect(page.getByText("最近操作：SYSTEM_SETTING_UPDATE")).toBeVisible();
 });
 
 test("administrator can filter audit logs", async ({ page }) => {

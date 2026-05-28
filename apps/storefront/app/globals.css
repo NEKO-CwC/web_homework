@@ -656,6 +656,40 @@ a {
   font-size: 13px;
 }
 
+.service-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.service-metrics div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--muted) 5%, transparent);
+}
+
+.service-metrics dt,
+.service-metrics dd {
+  margin: 0;
+}
+
+.service-metrics dt {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.service-metrics dd {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
 .row {
   display: flex;
   align-items: center;
