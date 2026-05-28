@@ -76,6 +76,35 @@ function validateStoreProfileInput(input: StoreProfileInput) {
   if (input.description.trim().length < 8) throw new Error("店铺介绍至少 8 个字");
 }
 
+function validateCheckoutInput(input: CheckoutInput) {
+  if (!input.receiver.trim()) throw new Error("请输入收货人");
+  if (input.phone.trim().length < 6) throw new Error("请输入联系电话");
+  if (input.address.trim().length < 8) throw new Error("请输入完整收货地址");
+  if (!input.paymentMethod.trim()) throw new Error("请选择虚拟支付方式");
+  if (input.productId && (!Number.isInteger(input.quantity ?? 1) || (input.quantity ?? 1) < 1)) {
+    throw new Error("购买数量必须大于 0");
+  }
+}
+
+function validatePaymentRetryInput(input: { orderNo: string; paymentMethod: string }) {
+  if (!input.orderNo.trim()) throw new Error("缺少订单号");
+  if (!input.paymentMethod.trim()) throw new Error("请选择虚拟支付方式");
+}
+
+function validateReviewInput(input: ReviewInput) {
+  if (!input.orderItemId.trim()) throw new Error("请选择订单");
+  if (!Number.isFinite(input.rating) || input.rating < 1) throw new Error("评分至少 1 分");
+  if (input.rating > 5) throw new Error("评分最高 5 分");
+  if (input.content.trim().length < 4) throw new Error("评价内容至少 4 个字");
+}
+
+function validateAfterSaleInput(input: AfterSaleInput) {
+  if (!input.orderItemId.trim()) throw new Error("请选择订单商品");
+  if (!["REFUND", "RETURN_REFUND", "EXCHANGE"].includes(input.type)) throw new Error("请选择售后类型");
+  if (input.reason.trim().length < 2) throw new Error("请选择或填写原因");
+  if (input.description.trim().length < 4) throw new Error("说明至少 4 个字");
+}
+
 export interface CheckoutInput {
   userId?: string;
   receiver: string;
@@ -302,6 +331,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async checkout(input: CheckoutInput) {
+    validateCheckoutInput(input);
     const paymentSucceeded = input.paymentMethod !== "fail";
     const nextStatus = nextOrderStatusAfterPayment(paymentSucceeded);
     const orderNo = paymentSucceeded ? "MO20260528099" : "MO20260528098";
@@ -311,6 +341,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async retryPayment(input: { userId?: string; orderNo: string; paymentMethod: string }) {
+    validatePaymentRetryInput(input);
     void input.userId;
     void input.paymentMethod;
     retryDemoOrderPayment(input.orderNo);
@@ -323,11 +354,13 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async submitReview(input: ReviewInput) {
+    validateReviewInput(input);
     markDemoOrderItemReviewed(input.orderItemId);
     return "评价已提交，商品评分已更新";
   }
 
   async createAfterSale(input: AfterSaleInput) {
+    validateAfterSaleInput(input);
     createDemoAfterSale(input);
     return "售后申请已提交，商家工作台可见";
   }
@@ -647,6 +680,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async checkout(input: CheckoutInput) {
+    validateCheckoutInput(input);
     const db = await this.getDb();
     const userId = activeUserId(input.userId);
     const orderNo = makeBusinessNo("MO");
@@ -657,10 +691,6 @@ export class PrismaMallWriteService implements MallWriteService {
     const directQuantity = input.quantity ?? 1;
 
     const createdOrder = await db.$transaction(async (tx) => {
-      if (directProductId && (!Number.isInteger(directQuantity) || directQuantity < 1)) {
-        throw new Error("购买数量必须大于 0");
-      }
-
       const checkoutItems = directProductId
         ? await (async () => {
           const product = await tx.product.findUnique({
@@ -751,6 +781,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async retryPayment(input: { userId?: string; orderNo: string; paymentMethod: string }) {
+    validatePaymentRetryInput(input);
     const db = await this.getDb();
     const userId = activeUserId(input.userId);
     const paymentNo = makeBusinessNo("PAY");
@@ -844,6 +875,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async submitReview(input: ReviewInput) {
+    validateReviewInput(input);
     const db = await this.getDb();
     const userId = activeUserId(input.userId);
     const orderItem = await db.orderItem.findUnique({
@@ -883,6 +915,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async createAfterSale(input: AfterSaleInput) {
+    validateAfterSaleInput(input);
     const db = await this.getDb();
     const userId = activeUserId(input.userId);
     const orderItem = await db.orderItem.findUnique({

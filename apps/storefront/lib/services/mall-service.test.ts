@@ -535,6 +535,27 @@ describe("DemoMallWriteService", () => {
   });
 
   it("rejects demo cart and shipment invalid transitions", async () => {
+    await expect(service.checkout({
+      receiver: "",
+      phone: "13800000001",
+      address: "江西省南昌市红谷滩区学府大道 999 号",
+      paymentMethod: "balance"
+    })).rejects.toThrow("请输入收货人");
+    await expect(service.retryPayment({
+      orderNo: "",
+      paymentMethod: "balance"
+    })).rejects.toThrow("缺少订单号");
+    await expect(service.submitReview({
+      orderItemId: "item-2",
+      rating: 6,
+      content: "评价内容符合长度。"
+    })).rejects.toThrow("评分最高 5 分");
+    await expect(service.createAfterSale({
+      orderItemId: "item-2",
+      type: "EXCHANGE",
+      reason: "颜色",
+      description: "短"
+    })).rejects.toThrow("说明至少 4 个字");
     await expect(service.addCartItem({
       productName: "缺货商品",
       stock: 0
@@ -962,6 +983,16 @@ describe("PrismaMallWriteService", () => {
     await expect(service.checkout({
       userId: "user-customer-1",
       receiver: "林一",
+      phone: "",
+      address: "江西省南昌市红谷滩区学府大道 999 号",
+      paymentMethod: "balance"
+    })).rejects.toThrow("请输入联系电话");
+    expect(db.cartItem.findMany).not.toHaveBeenCalled();
+    expect(db.order.create).not.toHaveBeenCalled();
+
+    await expect(service.checkout({
+      userId: "user-customer-1",
+      receiver: "林一",
       phone: "13800000001",
       address: "江西省南昌市红谷滩区学府大道 999 号",
       paymentMethod: "balance",
@@ -981,6 +1012,36 @@ describe("PrismaMallWriteService", () => {
     })).rejects.toThrow("商品不存在");
 
     expect(db.order.create).not.toHaveBeenCalled();
+  });
+
+  it("validates prisma payment retry review and after-sale payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.retryPayment({
+      userId: "user-customer-1",
+      orderNo: "MO20260524003",
+      paymentMethod: ""
+    })).rejects.toThrow("请选择虚拟支付方式");
+    expect(db.order.findUnique).not.toHaveBeenCalled();
+    expect(db.payment.create).not.toHaveBeenCalled();
+
+    await expect(service.submitReview({
+      userId: "user-customer-1",
+      orderItemId: "item-2",
+      rating: 0,
+      content: "评价内容符合长度。"
+    })).rejects.toThrow("评分至少 1 分");
+    expect(db.orderItem.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.createAfterSale({
+      userId: "user-customer-1",
+      orderItemId: "item-2",
+      type: "BAD_TYPE" as never,
+      reason: "颜色",
+      description: "说明内容"
+    })).rejects.toThrow("请选择售后类型");
+    expect(db.afterSaleRequest.create).not.toHaveBeenCalled();
   });
 
   it("rejects checkout when cart is empty or stock is unavailable", async () => {
