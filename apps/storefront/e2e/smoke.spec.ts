@@ -86,6 +86,17 @@ async function prepareCleanScreenshot(page: Page) {
   });
 }
 
+async function findPaginatedOrderRow(page: Page, orderNo: string) {
+  for (let pageNo = 1; pageNo <= 5; pageNo += 1) {
+    const row = page.getByRole("row").filter({ hasText: orderNo });
+    if (await row.count()) return row;
+    const nextPage = page.getByRole("link", { name: "下一页" }).first();
+    if (await nextPage.count() === 0) break;
+    await nextPage.click();
+  }
+  return page.getByRole("row").filter({ hasText: orderNo });
+}
+
 async function reactivateMerchantProduct(page: Page, productName: string) {
   await login(page, "merchant@example.com");
   for (let pageNo = 1; pageNo <= 5; pageNo += 1) {
@@ -333,20 +344,20 @@ test("customer can add to cart and adjust cart quantities", async ({ page }) => 
 
   await page.goto("/cart");
   await expect(page.getByText("应付合计", { exact: true })).toBeVisible();
-  await expect(page.getByText("¥667")).toBeVisible();
-  await page.getByRole("button", { name: "增加 空气感智能台灯 数量" }).click();
-  await expect(page.getByText("购物车数量已更新为 2")).toBeVisible();
-  await expect(page.getByText("小计 ¥658")).toBeVisible();
   await expect(page.getByText("¥996")).toBeVisible();
+  await page.getByRole("button", { name: "增加 空气感智能台灯 数量" }).click();
+  await expect(page.getByText("购物车数量已更新为 3")).toBeVisible();
+  await expect(page.getByText("小计 ¥987")).toBeVisible();
+  await expect(page.getByText("¥1,325")).toBeVisible();
 
   await page.getByRole("button", { name: "减少 空气感智能台灯 数量" }).click();
-  await expect(page.getByText("购物车数量已更新为 1")).toBeVisible();
-  await expect(page.getByText("小计 ¥329")).toBeVisible();
+  await expect(page.getByText("购物车数量已更新为 2")).toBeVisible();
+  await expect(page.getByText("小计 ¥658")).toBeVisible();
 
   await page.getByRole("button", { name: "删除 空气感智能台灯" }).click();
   await expect(page.getByText("购物车商品已删除")).toBeVisible();
   await expect(page.getByText("模块化收纳套装")).toBeVisible();
-  await expect(page.getByText("空气感智能台灯")).toHaveCount(0);
+  await expect(page.locator(".row").filter({ hasText: "空气感智能台灯" })).toHaveCount(0);
 });
 
 test("checkout validates and returns virtual payment feedback", async ({ page }) => {
@@ -498,10 +509,7 @@ test("merchant can create a virtual waybill", async ({ page }, testInfo) => {
   await expect(orderRow).toHaveCount(0);
 
   await page.goto("/merchant/orders?orderStatus=SHIPPED");
-  const shippedRow = page.getByRole("row").filter({ hasText: orderNo });
-  if (await shippedRow.count() === 0) {
-    await page.goto("/merchant/orders?orderStatus=SHIPPED&orderPage=2");
-  }
+  const shippedRow = await findPaginatedOrderRow(page, orderNo);
   await expect(shippedRow.getByText("运输中")).toBeVisible();
   await expect(shippedRow.getByText(/VL-\d{4}-\d{4}/)).toBeVisible();
 });

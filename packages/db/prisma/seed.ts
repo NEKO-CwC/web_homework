@@ -100,6 +100,88 @@ async function main() {
       role: "CUSTOMER"
     }
   });
+  const e2eCustomers = await prisma.user.createManyAndReturn({
+    data: [
+      {
+        id: "user-e2e-profile-desktop",
+        email: "profile-desktop@example.com",
+        phone: "13800000011",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-profile-mobile",
+        email: "profile-mobile@example.com",
+        phone: "13800000012",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-review-desktop",
+        email: "review-desktop@example.com",
+        phone: "13800000013",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-review-mobile",
+        email: "review-mobile@example.com",
+        phone: "13800000014",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-after-sale-desktop",
+        email: "after-sale-desktop@example.com",
+        phone: "13800000015",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-after-sale-mobile",
+        email: "after-sale-mobile@example.com",
+        phone: "13800000016",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-shipment-desktop",
+        email: "shipment-desktop@example.com",
+        phone: "13800000017",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-shipment-mobile",
+        email: "shipment-mobile@example.com",
+        phone: "13800000018",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-merchant-after-sale-desktop",
+        email: "merchant-after-sale-desktop@example.com",
+        phone: "13800000019",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      },
+      {
+        id: "user-e2e-merchant-after-sale-mobile",
+        email: "merchant-after-sale-mobile@example.com",
+        phone: "13800000020",
+        passwordHash: demoPasswordHash,
+        role: "CUSTOMER"
+      }
+    ]
+  });
+  await prisma.customerProfile.createMany({
+    data: e2eCustomers.map((user, index) => ({
+      userId: user.id,
+      nickname: `验收顾客 ${index + 1}`,
+      contactPhone: user.phone ?? "13800000000",
+      defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
+    }))
+  });
 
   const storeA = await prisma.store.create({
     data: {
@@ -354,6 +436,199 @@ async function main() {
         }
       }
     }
+  });
+  await prisma.order.createMany({
+    data: [
+      {
+        id: "order-8",
+        userId: "user-e2e-shipment-desktop",
+        orderNo: "MO20260528008",
+        status: "TO_SHIP",
+        totalAmountCents: 32900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-9",
+        userId: "user-e2e-shipment-mobile",
+        orderNo: "MO20260528009",
+        status: "TO_SHIP",
+        totalAmountCents: 32900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-6",
+        userId: "user-e2e-review-desktop",
+        orderNo: "MO20260527009",
+        status: "SHIPPED",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-7",
+        userId: "user-e2e-review-mobile",
+        orderNo: "MO20260527010",
+        status: "SHIPPED",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-10",
+        userId: "user-e2e-after-sale-desktop",
+        orderNo: "MO20260527011",
+        status: "SHIPPED",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-11",
+        userId: "user-e2e-after-sale-mobile",
+        orderNo: "MO20260527012",
+        status: "SHIPPED",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-12",
+        userId: "user-e2e-merchant-after-sale-desktop",
+        orderNo: "MO20260526012",
+        status: "AFTER_SALE",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      },
+      {
+        id: "order-13",
+        userId: "user-e2e-merchant-after-sale-mobile",
+        orderNo: "MO20260526013",
+        status: "AFTER_SALE",
+        totalAmountCents: 59900,
+        addressSnapshot: "江西省南昌市红谷滩区学府大道 999 号"
+      }
+    ]
+  });
+  await prisma.orderItem.createMany({
+    data: [
+      {
+        id: "item-e2e-shipment-desktop",
+        orderId: "order-8",
+        productId: products[0].id,
+        storeId: storeA.id,
+        priceCents: 32900,
+        quantity: 1,
+        status: "TO_SHIP"
+      },
+      {
+        id: "item-e2e-shipment-mobile",
+        orderId: "order-9",
+        productId: products[0].id,
+        storeId: storeA.id,
+        priceCents: 32900,
+        quantity: 1,
+        status: "TO_SHIP"
+      },
+      {
+        id: "item-e2e-review-desktop",
+        orderId: "order-6",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "SHIPPED"
+      },
+      {
+        id: "item-e2e-review-mobile",
+        orderId: "order-7",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "SHIPPED"
+      },
+      {
+        id: "item-e2e-after-sale-desktop",
+        orderId: "order-10",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "SHIPPED"
+      },
+      {
+        id: "item-e2e-after-sale-mobile",
+        orderId: "order-11",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "SHIPPED"
+      },
+      {
+        id: "item-e2e-merchant-after-sale-desktop",
+        orderId: "order-12",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "AFTER_SALE"
+      },
+      {
+        id: "item-e2e-merchant-after-sale-mobile",
+        orderId: "order-13",
+        productId: products[1].id,
+        storeId: storeA.id,
+        priceCents: 59900,
+        quantity: 1,
+        status: "AFTER_SALE"
+      }
+    ]
+  });
+  for (const [orderId, shipmentId, trackingNo] of [
+    ["order-6", "ship-e2e-review-desktop", "VL-8218-0109"],
+    ["order-7", "ship-e2e-review-mobile", "VL-8218-0110"],
+    ["order-10", "ship-e2e-after-sale-desktop", "VL-8218-0111"],
+    ["order-11", "ship-e2e-after-sale-mobile", "VL-8218-0112"]
+  ] as const) {
+    await prisma.shipment.create({
+      data: {
+        id: shipmentId,
+        orderId,
+        storeId: storeA.id,
+        trackingNo,
+        status: "IN_TRANSIT",
+        events: {
+          createMany: {
+            data: [
+              { title: "已发货", description: "商家已生成虚拟运单。" },
+              { title: "运输中", description: "包裹已进入南昌分拨中心。" },
+              { title: "待确认收货", description: "预计今日送达。" }
+            ]
+          }
+        }
+      }
+    });
+  }
+  await prisma.afterSaleRequest.createMany({
+    data: [
+      {
+        id: "after-e2e-merchant-desktop",
+        userId: "user-e2e-merchant-after-sale-desktop",
+        orderItemId: "item-e2e-merchant-after-sale-desktop",
+        type: "EXCHANGE",
+        reason: "桌面售后筛选",
+        description: "桌面项目专用待处理售后。",
+        evidenceUrl: "/uploads/evidence-demo.png",
+        status: "REQUESTED"
+      },
+      {
+        id: "after-e2e-merchant-mobile",
+        userId: "user-e2e-merchant-after-sale-mobile",
+        orderItemId: "item-e2e-merchant-after-sale-mobile",
+        type: "EXCHANGE",
+        reason: "移动售后筛选",
+        description: "移动项目专用待处理售后。",
+        evidenceUrl: "/uploads/evidence-demo.png",
+        status: "REQUESTED"
+      }
+    ]
   });
 
   await prisma.homeBanner.createMany({
