@@ -48,6 +48,23 @@ pnpm db:seed
 pnpm db:verify
 ```
 
+连接托管 PostgreSQL 时，建议在 `DATABASE_URL` 末尾显式指定业务 schema，例如：
+
+```dotenv
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/default?schema=web_homework"
+AUTH_SESSION_SECRET="replace-with-a-long-random-string"
+MALL_WRITE_MODE="prisma"
+```
+
+远端或共享数据库使用 `migrate deploy` 应用已提交迁移，避免在托管库上执行开发迁移：
+
+```powershell
+pnpm prisma:generate
+pnpm --filter @minimal-mall/db exec prisma migrate deploy --schema prisma/schema.prisma
+pnpm db:seed
+pnpm db:verify
+```
+
 默认 `MALL_WRITE_MODE=demo` 使用内置 seed/fixture 演示数据，便于无数据库运行页面。配置 PostgreSQL 并完成 migrate/seed 后，可将 `.env` 中的 `MALL_WRITE_MODE` 改为 `prisma`，Server Actions 会写入真实 Prisma 数据库，覆盖购物车、结算支付、确认收货、评价、售后、开店申请、商品发布、商家发货、商家审核、首页配置和系统配置。
 
 ## 演示账号
