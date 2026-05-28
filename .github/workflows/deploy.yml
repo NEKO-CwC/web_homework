@@ -76,11 +76,32 @@ jobs:
           MALL_WRITE_MODE: ${{ secrets.MALL_WRITE_MODE }}
         run: |
           set -Eeuo pipefail
+          case "$DATABASE_URL" in
+            ""|*"USER"*|*"PASSWORD"*|*"HOST"*)
+              echo "DATABASE_URL secret must be a real PostgreSQL URL, not a placeholder." >&2
+              exit 1
+              ;;
+          esac
+          case "$DATABASE_URL" in
+            *"schema=web_homework"*) ;;
+            *)
+              echo "DATABASE_URL secret must include schema=web_homework." >&2
+              exit 1
+              ;;
+          esac
+          if [ -z "$AUTH_SESSION_SECRET" ]; then
+            echo "AUTH_SESSION_SECRET secret is required." >&2
+            exit 1
+          fi
+          if [ "${MALL_WRITE_MODE:-prisma}" != "prisma" ]; then
+            echo "MALL_WRITE_MODE secret must be prisma for production deploy." >&2
+            exit 1
+          fi
           umask 077
           {
-            printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
-            printf 'AUTH_SESSION_SECRET=%s\n' "$AUTH_SESSION_SECRET"
-            printf 'MALL_WRITE_MODE=%s\n' "$MALL_WRITE_MODE"
+            node -e "console.log('DATABASE_URL=' + JSON.stringify(process.env.DATABASE_URL))"
+            node -e "console.log('AUTH_SESSION_SECRET=' + JSON.stringify(process.env.AUTH_SESSION_SECRET))"
+            node -e "console.log('MALL_WRITE_MODE=' + JSON.stringify(process.env.MALL_WRITE_MODE || 'prisma'))"
           } > "$RUNNER_TEMP/web_homework.env"
 
       - name: Copy environment to server

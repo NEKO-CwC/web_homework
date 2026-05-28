@@ -116,7 +116,7 @@ Compose 和生产 CI 使用 `MALL_WRITE_MODE=prisma`，并要求 `.env` 或 GitH
 - `SSH_PORT`：SSH 端口，例如 `22`
 - `SSH_USER`：SSH 用户，例如 `root`
 - `SSH_KEY`：连接服务器的私钥
-- `DATABASE_URL`：生产 PostgreSQL URL，例如 `postgresql://USER:PASSWORD@HOST:5432/default?schema=web_homework`
+- `DATABASE_URL`：生产 PostgreSQL URL，必须使用真实用户名、密码、主机，并包含 `schema=web_homework`，例如 `postgresql://USER:PASSWORD@HOST:5432/default?schema=web_homework`
 - `AUTH_SESSION_SECRET`：生产会话密钥
 - `MALL_WRITE_MODE`：生产写入模式，使用 `prisma`
 
