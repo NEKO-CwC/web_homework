@@ -41,7 +41,6 @@ import {
 } from "../demo-state";
 import { checkoutTotalCents, makeVirtualTrackingNo } from "../format";
 
-const DEFAULT_CUSTOMER_ID = "user-customer-1";
 const DEFAULT_MERCHANT_ID = "merchant-1";
 const DEFAULT_ADMIN_ID = "admin-1";
 const DEMO_PASSWORD = "12345678";
@@ -568,8 +567,14 @@ export class DemoMallWriteService implements MallWriteService {
   }
 }
 
-function activeUserId(inputUserId?: string) {
-  return inputUserId ?? DEFAULT_CUSTOMER_ID;
+function requireCustomerId(inputUserId?: string) {
+  if (!inputUserId) throw new Error("请先登录后再操作");
+  return inputUserId;
+}
+
+function requireActorIdValue(actorId?: string) {
+  if (!actorId) throw new Error("当前账号无权执行该操作");
+  return actorId;
 }
 
 function makeBusinessNo(prefix: "MO" | "PAY") {
@@ -708,7 +713,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async saveProfile(input: { userId?: string; nickname: string; contactPhone: string; defaultAddress: string }) {
     validateCustomerProfile(input);
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error("当前用户不存在，无法保存资料");
 
@@ -732,7 +737,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async addCartItem(input: { userId?: string; productId?: string; productName: string; stock: number }) {
     if (input.stock < 1) throw new Error("库存不足，无法加入购物车");
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
 
     const result = await db.$transaction(async (tx) => {
       const product = input.productId
@@ -783,7 +788,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async updateCartQuantity(input: { userId?: string; cartItemId: string; quantity: number }) {
     if (input.quantity < 1) throw new Error("购物车数量不能小于 1");
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const line = await db.cartItem.findUnique({
       where: { id: input.cartItemId },
       include: { product: true }
@@ -801,7 +806,7 @@ export class PrismaMallWriteService implements MallWriteService {
 
   async removeCartItem(input: { userId?: string; cartItemId: string }) {
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const line = await db.cartItem.findUnique({
       where: { id: input.cartItemId },
       include: { product: true }
@@ -817,7 +822,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async checkout(input: CheckoutInput) {
     validateCheckoutInput(input);
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const orderNo = makeBusinessNo("MO");
     const paymentNo = makeBusinessNo("PAY");
     const paymentSucceeded = input.paymentMethod !== "fail";
@@ -918,7 +923,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async retryPayment(input: { userId?: string; orderNo: string; paymentMethod: string }) {
     validatePaymentRetryInput(input);
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const paymentNo = makeBusinessNo("PAY");
     const nextStatus = nextOrderStatusAfterPayment(true);
 
@@ -985,7 +990,7 @@ export class PrismaMallWriteService implements MallWriteService {
 
   async confirmReceive(input: { userId?: string; orderNo: string; status: OrderStatus }) {
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const nextStatus = nextOrderStatusAfterReceive(input.status);
     const order = await db.order.findUnique({ where: { orderNo: input.orderNo } });
     if (!order) throw new Error("订单不存在，无法确认收货");
@@ -1012,7 +1017,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async submitReview(input: ReviewInput) {
     validateReviewInput(input);
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const orderItem = await db.orderItem.findUnique({
       where: { id: input.orderItemId },
       include: {
@@ -1052,7 +1057,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async createAfterSale(input: AfterSaleInput) {
     validateAfterSaleInput(input);
     const db = await this.getDb();
-    const userId = activeUserId(input.userId);
+    const userId = requireCustomerId(input.userId);
     const orderItem = await db.orderItem.findUnique({
       where: { id: input.orderItemId },
       include: {
@@ -1096,8 +1101,9 @@ export class PrismaMallWriteService implements MallWriteService {
   async submitMerchantApplication(input: MerchantApplicationInput): Promise<MerchantApplicationResult> {
     validateMerchantApplicationInput(input);
     const db = await this.getDb();
+    const userId = requireCustomerId(input.userId);
     const existingStore = await db.store.findFirst({
-      where: { ownerId: input.userId }
+      where: { ownerId: userId }
     });
     if (existingStore) throw new Error("当前账号已拥有店铺");
 
@@ -1106,7 +1112,7 @@ export class PrismaMallWriteService implements MallWriteService {
       const store = await db.$transaction(async (tx) => {
         await tx.merchantApplication.create({
           data: {
-            userId: input.userId,
+            userId,
             storeName: input.storeName,
             categoryId: input.categoryId,
             description: input.description,
@@ -1116,12 +1122,12 @@ export class PrismaMallWriteService implements MallWriteService {
           }
         });
         const promotedUser = await tx.user.update({
-          where: { id: input.userId },
+          where: { id: userId },
           data: { role: "MERCHANT" }
         });
         const createdStore = await tx.store.create({
           data: {
-            ownerId: input.userId,
+            ownerId: userId,
             categoryId: input.categoryId,
             name: input.storeName,
             description: input.description,
@@ -1137,7 +1143,7 @@ export class PrismaMallWriteService implements MallWriteService {
       return {
         message: "开店申请已自动通过，店铺已生成",
         promotedUser: {
-          id: input.userId,
+          id: userId,
           role: "MERCHANT",
           email: store.email,
           phone: store.phone,
@@ -1148,7 +1154,7 @@ export class PrismaMallWriteService implements MallWriteService {
 
     const existing = await db.merchantApplication.findFirst({
       where: {
-        userId: input.userId,
+        userId,
         status: "SUBMITTED"
       }
     });
@@ -1156,7 +1162,7 @@ export class PrismaMallWriteService implements MallWriteService {
 
     await db.merchantApplication.create({
       data: {
-        userId: input.userId,
+        userId,
         storeName: input.storeName,
         categoryId: input.categoryId,
         description: input.description,
@@ -1170,9 +1176,10 @@ export class PrismaMallWriteService implements MallWriteService {
   async publishProduct(input: ProductInput) {
     validateProductInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法发布商品");
-    if (input.actorId && store.ownerId !== input.actorId) throw new Error("只能维护自己的店铺");
+    if (store.ownerId !== actorId) throw new Error("只能维护自己的店铺");
     if (store.status !== "ACTIVE") throw new Error("店铺已冻结，无法发布新商品");
 
     await db.product.create({
@@ -1198,9 +1205,10 @@ export class PrismaMallWriteService implements MallWriteService {
   async updateStoreProfile(input: StoreProfileInput) {
     validateStoreProfileInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法保存资料");
-    if (input.actorId && store.ownerId !== input.actorId) throw new Error("只能维护自己的店铺");
+    if (store.ownerId !== actorId) throw new Error("只能维护自己的店铺");
 
     await db.store.update({
       where: { id: input.storeId },
@@ -1216,12 +1224,13 @@ export class PrismaMallWriteService implements MallWriteService {
   async updateProduct(input: ProductUpdateInput) {
     validateProductInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const product = await db.product.findUnique({
       where: { id: input.productId },
       include: { store: true, images: { orderBy: { sortOrder: "asc" } } }
     });
     if (!product) throw new Error("商品不存在，无法保存");
-    if (input.actorId && product.store.ownerId !== input.actorId) throw new Error("只能编辑自己店铺的商品");
+    if (product.store.ownerId !== actorId) throw new Error("只能编辑自己店铺的商品");
     if (product.store.status !== "ACTIVE") throw new Error("店铺已冻结，无法编辑商品");
 
     await db.$transaction(async (tx) => {
@@ -1257,12 +1266,13 @@ export class PrismaMallWriteService implements MallWriteService {
 
   async updateProductStatus(input: { actorId?: string; productId: string; status: ProductStatus }) {
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const product = await db.product.findUnique({
       where: { id: input.productId },
       include: { store: true }
     });
     if (!product) throw new Error("商品不存在，无法修改状态");
-    if (input.actorId && product.store.ownerId !== input.actorId) throw new Error("只能管理自己店铺的商品");
+    if (product.store.ownerId !== actorId) throw new Error("只能管理自己店铺的商品");
     if (product.store.status !== "ACTIVE" && input.status === "ACTIVE") throw new Error("店铺已冻结，商品不能上架");
     if (input.status === "ACTIVE" && product.stock < 1) throw new Error("库存不足，商品不能上架");
 
@@ -1274,8 +1284,8 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async updateStoreStatus(input: { actorId?: string; storeId: string; status: StoreStatus }) {
-    if (!input.actorId) throw new Error("只有管理员可以修改店铺状态");
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法修改状态");
     const isReviewOnly = store.status === input.status;
@@ -1295,7 +1305,7 @@ export class PrismaMallWriteService implements MallWriteService {
       }
       await tx.auditLog.create({
         data: {
-          actorId: input.actorId,
+          actorId,
           action: isReviewOnly ? "STORE_REVIEW" : input.status === "FROZEN" ? "STORE_FREEZE" : "STORE_ACTIVATE",
           targetType: "Store",
           targetId: input.storeId,
@@ -1312,6 +1322,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
     validateShipmentInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const order = await db.order.findUnique({
       where: { orderNo: input.orderNo },
       include: {
@@ -1323,12 +1334,12 @@ export class PrismaMallWriteService implements MallWriteService {
     if (order.status !== input.status) throw new Error("订单状态已变化，请刷新后重试");
     const targetItem = input.storeId
       ? order.items.find((item) => item.storeId === input.storeId)
-      : order.items.find((item) => !input.actorId || item.store.ownerId === input.actorId);
+      : order.items.find((item) => item.store.ownerId === actorId);
     if (!targetItem) throw new Error("订单不包含当前店铺商品，无法生成运单");
     if (order.shipments.some((shipment) => shipment.storeId === targetItem.storeId)) {
       throw new Error("该店铺订单已有有效运单");
     }
-    if (input.actorId && targetItem.store.ownerId !== input.actorId) {
+    if (targetItem.store.ownerId !== actorId) {
       throw new Error("只能为自己店铺的订单生成运单");
     }
     if (!order.items.some((item) => item.storeId === targetItem.storeId && item.status === "TO_SHIP")) {
@@ -1368,7 +1379,7 @@ export class PrismaMallWriteService implements MallWriteService {
       });
       await tx.auditLog.create({
         data: {
-          actorId: input.actorId ?? DEFAULT_MERCHANT_ID,
+          actorId,
           action: "CREATE_SHIPMENT",
           targetType: "Order",
           targetId: order.id,
@@ -1385,6 +1396,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async handleAfterSale(input: { actorId?: string; afterSaleId?: string; action: "approve" | "reject"; reply: string }) {
     validateAfterSaleDecisionInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const request = input.afterSaleId
       ? await db.afterSaleRequest.findUnique({
         where: { id: input.afterSaleId },
@@ -1395,7 +1407,7 @@ export class PrismaMallWriteService implements MallWriteService {
         include: { orderItem: { include: { store: true } } }
       });
     if (!request) throw new Error("售后申请不存在或已处理");
-    if (input.actorId && request.orderItem.store.ownerId !== input.actorId) {
+    if (request.orderItem.store.ownerId !== actorId) {
       throw new Error("只能处理自己店铺的售后申请");
     }
 
@@ -1428,7 +1440,7 @@ export class PrismaMallWriteService implements MallWriteService {
       });
       await tx.auditLog.create({
         data: {
-          actorId: input.actorId ?? DEFAULT_MERCHANT_ID,
+          actorId,
           action: input.action === "approve" ? "AFTER_SALE_APPROVE" : "AFTER_SALE_REJECT",
           targetType: "AfterSaleRequest",
           targetId: request.id,
@@ -1445,6 +1457,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }) {
     validateMerchantReviewInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const application = input.applicationId
       ? await db.merchantApplication.findUnique({ where: { id: input.applicationId } })
       : await db.merchantApplication.findFirst({ where: { status: "SUBMITTED" } });
@@ -1483,7 +1496,7 @@ export class PrismaMallWriteService implements MallWriteService {
       }
       await tx.auditLog.create({
         data: {
-          actorId: input.actorId ?? DEFAULT_ADMIN_ID,
+          actorId,
           action: input.action === "approve" ? "MERCHANT_REVIEW_APPROVE" : "MERCHANT_REVIEW_REJECT",
           targetType: "MerchantApplication",
           targetId: application.id,
@@ -1500,7 +1513,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async saveHomeBanner(input: HomeBannerInput) {
     validateHomeBannerInput(input);
     const db = await this.getDb();
-    if (!input.actorId) throw new Error("只有管理员可以保存首页配置");
+    const actorId = requireActorIdValue(input.actorId);
     const targetId = input.id ?? "new";
     if (input.id) {
       await db.homeBanner.update({
@@ -1527,7 +1540,7 @@ export class PrismaMallWriteService implements MallWriteService {
     }
     await db.auditLog.create({
       data: {
-        actorId: input.actorId,
+        actorId,
         action: "HOME_BANNER_SAVE",
         targetType: "HomeBanner",
         targetId,
@@ -1545,6 +1558,7 @@ export class PrismaMallWriteService implements MallWriteService {
   async updateSystemSetting(input: { actorId?: string; key: string; value?: string }) {
     validateSystemSettingInput(input);
     const db = await this.getDb();
+    const actorId = requireActorIdValue(input.actorId);
     const setting = await db.systemSetting.findUnique({ where: { key: input.key } });
     if (!setting) throw new Error("系统配置项不存在");
     const nextValue = nextSystemSettingValue(input.key, setting.value, input.value);
@@ -1556,7 +1570,7 @@ export class PrismaMallWriteService implements MallWriteService {
       }),
       db.auditLog.create({
         data: {
-          actorId: input.actorId ?? DEFAULT_ADMIN_ID,
+          actorId,
           action: "SYSTEM_SETTING_UPDATE",
           targetType: "SystemSetting",
           targetId: input.key,

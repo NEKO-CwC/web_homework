@@ -954,6 +954,47 @@ describe("DemoMallWriteService", () => {
 });
 
 describe("PrismaMallWriteService", () => {
+  it("requires explicit actors and customers for Prisma write operations", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.addCartItem({
+      productName: "空气感智能台灯",
+      stock: 1
+    })).rejects.toThrow("请先登录后再操作");
+    expect(db.product.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.checkout({
+      receiver: "林一",
+      phone: "13800000001",
+      address: "江西省南昌市红谷滩区学府大道 999 号",
+      paymentMethod: "balance"
+    })).rejects.toThrow("请先登录后再操作");
+    expect(db.cartItem.findMany).not.toHaveBeenCalled();
+
+    await expect(service.publishProduct({
+      storeId: "store-minimal",
+      name: "桌面新品",
+      priceCents: 9900,
+      stock: 5,
+      imageUrl: "/products/new.png",
+      description: "用于测试的桌面新品。"
+    })).rejects.toThrow("当前账号无权执行该操作");
+    expect(db.store.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.createShipment({
+      orderNo: "MO20260528001",
+      status: "TO_SHIP"
+    })).rejects.toThrow("当前账号无权执行该操作");
+    expect(db.order.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.updateSystemSetting({
+      key: "memberRegistration",
+      value: "disabled"
+    })).rejects.toThrow("当前账号无权执行该操作");
+    expect(db.systemSetting.findUnique).not.toHaveBeenCalled();
+  });
+
   it("verifies passwords and returns a session on login", async () => {
     const db = createMockDb();
     db.user.findFirst.mockResolvedValue({
@@ -1847,7 +1888,7 @@ describe("PrismaMallWriteService", () => {
     await expect(service.updateStoreStatus({
       storeId: "store-minimal",
       status: "ACTIVE"
-    })).rejects.toThrow("只有管理员");
+    })).rejects.toThrow("当前账号无权执行该操作");
   });
 
   it("creates a shipment, advances order state, and writes an audit log", async () => {
@@ -2313,7 +2354,7 @@ describe("PrismaMallWriteService", () => {
       imageUrl: "/banners/desk-refresh.jpg",
       linkUrl: "/",
       status: "ONLINE"
-    })).rejects.toThrow("只有管理员可以保存首页配置");
+    })).rejects.toThrow("当前账号无权执行该操作");
   });
 
   it("validates prisma home and system setting payloads before database writes", async () => {
