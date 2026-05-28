@@ -15,6 +15,7 @@ import {
   confirmDemoOrderReceive,
   createDemoAfterSale,
   createDemoShipment,
+  findDemoCustomerProfileByAccount,
   listDemoStores,
   publishDemoProduct,
   registerDemoCustomer,
@@ -35,6 +36,12 @@ import { checkoutTotalCents, makeVirtualTrackingNo } from "../format";
 const DEFAULT_CUSTOMER_ID = "user-customer-1";
 const DEFAULT_MERCHANT_ID = "merchant-1";
 const DEFAULT_ADMIN_ID = "admin-1";
+const DEMO_PASSWORD = "12345678";
+
+function assertDemoPassword(password: string, storedHash?: string) {
+  if (storedHash) return verifyPassword(password, storedHash);
+  return Promise.resolve(password === DEMO_PASSWORD);
+}
 
 export interface CheckoutInput {
   userId?: string;
@@ -159,8 +166,8 @@ async function getDefaultPrismaClient() {
 
 export class DemoMallWriteService implements MallWriteService {
   async login(input: { account: string; password: string }): Promise<AuthResult> {
-    void input.password;
     if (input.account === "admin@example.com") {
+      if (!(await assertDemoPassword(input.password))) throw new Error("账号或密码错误");
       return {
         message: "登录成功，已进入管理员后台",
         user: {
@@ -180,6 +187,7 @@ export class DemoMallWriteService implements MallWriteService {
     ) {
       const mode = input.account.includes("mobile") ? "mobile" : "desktop";
       const scope = input.account.startsWith("review") ? "review" : input.account.startsWith("after-sale") ? "after-sale" : "profile";
+      if (!(await assertDemoPassword(input.password))) throw new Error("账号或密码错误");
       return {
         message: "登录成功，已进入顾客前台",
         user: {
@@ -191,6 +199,7 @@ export class DemoMallWriteService implements MallWriteService {
       };
     }
     if (input.account === "merchant@example.com" || input.account === "13800000003") {
+      if (!(await assertDemoPassword(input.password))) throw new Error("账号或密码错误");
       return {
         message: "登录成功，已进入商家中台",
         user: {
@@ -202,13 +211,17 @@ export class DemoMallWriteService implements MallWriteService {
         }
       };
     }
+    const customer = findDemoCustomerProfileByAccount(input.account);
+    if (!customer || !(await assertDemoPassword(input.password, customer.passwordHash))) {
+      throw new Error("账号或密码错误");
+    }
     return {
       message: "登录成功，已进入顾客前台",
       user: {
-        id: DEFAULT_CUSTOMER_ID,
+        id: customer.id,
         role: "CUSTOMER",
-        email: "customer@example.com",
-        phone: "13800000001"
+        email: customer.email,
+        phone: customer.phone
       }
     };
   }
@@ -217,7 +230,10 @@ export class DemoMallWriteService implements MallWriteService {
     if (getDemoSystemSetting("memberRegistration")?.value === "disabled") {
       throw new Error("会员注册已暂停，请稍后再试");
     }
-    const profile = registerDemoCustomer(input);
+    const profile = registerDemoCustomer({
+      ...input,
+      passwordHash: await hashPassword(input.password)
+    });
     return {
       message: "注册成功，已进入顾客前台",
       user: {

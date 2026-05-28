@@ -9,7 +9,7 @@ import {
   listDemoAvailableProducts,
   listDemoHomeBanners,
   listDemoProducts,
-  resetDemoSystemSettings,
+  resetDemoState,
   updateDemoSystemSetting
 } from "../demo-state";
 import { DemoMallWriteService, PrismaMallWriteService } from "./mall-service";
@@ -106,7 +106,7 @@ describe("DemoMallWriteService", () => {
   const service = new DemoMallWriteService();
 
   beforeEach(() => {
-    resetDemoSystemSettings();
+    resetDemoState();
   });
 
   it("returns checkout and receipt messages through state transitions", async () => {
@@ -163,6 +163,13 @@ describe("DemoMallWriteService", () => {
       phone: "13800000009",
       defaultAddress: "江西省南昌市红谷滩区学府大道 999 号"
     });
+    await expect(service.login({
+      account: "new@example.com",
+      password: "12345678"
+    })).resolves.toMatchObject({
+      message: "登录成功，已进入顾客前台",
+      user: { id: "user-demo-2", role: "CUSTOMER", email: "new@example.com" }
+    });
     await expect(service.registerCustomer({
       account: "new@example.com",
       password: "12345678",
@@ -215,6 +222,14 @@ describe("DemoMallWriteService", () => {
       message: "登录成功，已进入管理员后台",
       user: { id: "admin-1", role: "ADMIN" }
     });
+    await expect(service.login({
+      account: "customer@example.com",
+      password: "wrong-pass"
+    })).rejects.toThrow("账号或密码错误");
+    await expect(service.login({
+      account: "missing@example.com",
+      password: "12345678"
+    })).rejects.toThrow("账号或密码错误");
   });
 
   it("creates deterministic virtual shipment numbers", async () => {

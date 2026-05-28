@@ -28,6 +28,7 @@ export interface DemoCustomerProfile {
   email: string;
   phone: string;
   defaultAddress: string;
+  passwordHash?: string;
 }
 
 interface DemoStateStore {
@@ -426,6 +427,13 @@ export function getDemoCustomerProfile(userId = currentCustomer.id): DemoCustome
   return cloneCustomerProfile(profile ?? currentCustomer);
 }
 
+export function findDemoCustomerProfileByAccount(account: string): DemoCustomerProfile | undefined {
+  const profile = getDemoStateStore().customerProfiles.find((item) =>
+    item.email === account || item.phone === account
+  );
+  return profile ? cloneCustomerProfile(profile) : undefined;
+}
+
 export function saveDemoCustomerProfile(input: {
   userId?: string;
   nickname: string;
@@ -458,6 +466,7 @@ export function registerDemoCustomer(input: {
   nickname: string;
   contactPhone: string;
   defaultAddress: string;
+  passwordHash?: string;
 }): DemoCustomerProfile {
   const store = getDemoStateStore();
   const isEmail = input.account.includes("@");
@@ -473,7 +482,8 @@ export function registerDemoCustomer(input: {
     nickname: input.nickname,
     email,
     phone,
-    defaultAddress: input.defaultAddress
+    defaultAddress: input.defaultAddress,
+    passwordHash: input.passwordHash
   };
   store.customerProfiles = [...store.customerProfiles, profile];
   return cloneCustomerProfile(profile);
