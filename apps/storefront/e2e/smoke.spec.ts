@@ -64,6 +64,12 @@ const screenshotShots = screenshotViewports.flatMap((viewport) =>
   }))
 );
 
+test.beforeEach(async ({ page }) => {
+  await page.context().clearCookies();
+  const response = await page.request.post("/api/e2e/reset");
+  expect(response.ok()).toBe(true);
+});
+
 async function login(page: Page, account: string) {
   await page.goto("/account");
   await page.getByLabel("手机号 / 邮箱").first().fill(account);
@@ -367,13 +373,12 @@ test("home category filter narrows product discovery", async ({ page }) => {
 
 test("home product cards show visible add-to-cart feedback", async ({ page }) => {
   await login(page, "customer@example.com");
-  const cartNav = page.getByRole("link", { name: /购物车/ }).first();
-  await expect(cartNav.locator(".count")).toHaveText("2");
+  await expect(page.getByRole("link", { name: /购物车/ }).first().locator(".count")).toHaveText("3");
   await page.goto("/");
   const productCard = page.locator(".product-card").filter({ hasText: "空气感智能台灯" });
   await productCard.getByRole("button", { name: "加入" }).click();
   await expect(productCard.getByRole("status")).toHaveText("已加入购物车");
-  await expect(cartNav.locator(".count")).toHaveText("3");
+  await expect(page.getByRole("link", { name: /购物车/ }).first().locator(".count")).toHaveText("4");
 });
 
 test("optimized storefront media renders from seeded assets", async ({ page }) => {
@@ -392,12 +397,12 @@ test("optimized storefront media renders from seeded assets", async ({ page }) =
 test("customer can add to cart and adjust cart quantities", async ({ page }) => {
   await login(page, "customer@example.com");
   const cartNav = page.getByRole("link", { name: /购物车/ }).first();
-  await expect(cartNav.locator(".count")).toHaveText("2");
+  await expect(cartNav.locator(".count")).toHaveText("3");
 
   await page.goto("/products/prod-lamp");
   await page.getByRole("button", { name: "加入购物车" }).click();
   await expect(page.getByText("已加入购物车：空气感智能台灯")).toBeVisible();
-  await expect(cartNav.locator(".count")).toHaveText("3");
+  await expect(cartNav.locator(".count")).toHaveText("4");
 
   await page.goto("/cart");
   await expect(page.getByText("应付合计", { exact: true })).toBeVisible();
@@ -460,9 +465,10 @@ test("customer sees failed virtual payment and can retry pending orders", async 
   await expect(page.getByText("虚拟支付失败")).toBeVisible();
 
   await page.goto("/orders");
-  await expect(page.getByRole("cell", { name: "MO20260524003" })).toBeVisible();
-  await expect(page.getByText("待支付")).toBeVisible();
-  await page.getByRole("button", { name: "继续支付" }).click();
+  const pendingOrderRow = page.getByRole("row").filter({ hasText: "MO20260524003" });
+  await expect(pendingOrderRow.getByRole("cell", { name: "MO20260524003" })).toBeVisible();
+  await expect(pendingOrderRow.getByText("待支付")).toBeVisible();
+  await pendingOrderRow.getByRole("button", { name: "继续支付" }).click();
   await expect(page.getByRole("status").filter({ hasText: "虚拟支付成功" })).toBeVisible();
 });
 
@@ -606,9 +612,11 @@ test("merchant can create a virtual waybill", async ({ page }, testInfo) => {
   const orderNo = testInfo.project.name.includes("mobile") ? "MO20260528009" : "MO20260528008";
   await login(page, "merchant@example.com");
   await page.goto("/merchant/orders?orderStatus=TO_SHIP");
-  const orderRow = page.getByRole("row").filter({ hasText: orderNo });
+  const orderRow = await findPaginatedOrderRow(page, orderNo);
   await expect(orderRow.getByText("待发货")).toBeVisible();
-  await orderRow.getByRole("button", { name: "生成运单" }).click();
+  const shipmentButton = orderRow.getByRole("button", { name: "生成运单" });
+  await expect(shipmentButton).toBeVisible();
+  await shipmentButton.click({ force: true });
   await expect(orderRow).toHaveCount(0);
 
   await page.goto("/merchant/orders?orderStatus=SHIPPED");

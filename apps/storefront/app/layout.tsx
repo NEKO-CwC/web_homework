@@ -139,11 +139,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     })),
     ...roleSearchItems
   ];
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <html lang="zh-CN">
       <body>
-        <AppNavigation cartCount={cartItems.length} searchItems={searchItems}>
+        <AppNavigation cartCount={cartCount} searchItems={searchItems}>
           {children}
         </AppNavigation>
       </body>

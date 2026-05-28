@@ -284,17 +284,20 @@ export async function retryPaymentAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("支付重试失败", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
+  let redirectUrl: string | null = null;
   try {
-    const message = await getMallWriteService().retryPayment({
+    await getMallWriteService().retryPayment({
       userId: await requireActorId("customer"),
       ...parsed.data
     });
     revalidatePaths(["/orders", "/merchant/orders", "/admin"]);
     revalidateProductDetailPages();
-    return ok(message);
+    redirectUrl = `/orders?payment=success&orderNo=${encodeURIComponent(parsed.data.orderNo)}`;
   } catch (error) {
     return fail(error instanceof Error ? error.message : "支付重试失败");
   }
+  if (redirectUrl) redirect(redirectUrl);
+  return ok("虚拟支付成功");
 }
 
 export async function confirmReceiveAction(_: ActionState, formData: FormData) {
@@ -388,6 +391,7 @@ export async function merchantApplyAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("开店申请未提交", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
+  let redirectToMerchantDashboard = false;
   try {
     const result = await getMallWriteService().submitMerchantApplication({
       userId: await requireActorId("customer"),
@@ -395,12 +399,19 @@ export async function merchantApplyAction(_: ActionState, formData: FormData) {
     });
     if (result.promotedUser) {
       await setSessionUser(result.promotedUser);
+      revalidatePaths(["/merchant/apply", "/merchant/products", "/merchant/orders", "/admin", "/admin/merchants"]);
+      redirectToMerchantDashboard = true;
+    } else {
+      revalidatePaths(["/merchant/apply", "/merchant/products", "/merchant/orders", "/admin", "/admin/merchants"]);
+      return ok(result.message);
     }
-    revalidatePaths(["/merchant/apply", "/merchant/products", "/merchant/orders", "/admin", "/admin/merchants"]);
-    return ok(result.message);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "开店申请提交失败");
   }
+  if (redirectToMerchantDashboard) {
+    redirect("/merchant/products?status=merchant-approved");
+  }
+  return ok("开店申请已提交");
 }
 
 export async function productPublishAction(_: ActionState, formData: FormData) {

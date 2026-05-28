@@ -7,9 +7,14 @@ import { listCustomerOrders } from "@/lib/data";
 import { badgeToneForOrder, formatMoney, formatOrderStatus } from "@/lib/format";
 import { requireSessionUser } from "@/lib/session";
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ payment?: string; orderNo?: string }>;
+}) {
   const { user, denied } = await requireSessionUser("customer");
   if (denied || !user) return <AccessDenied {...(denied ?? { title: "请先登录", message: "请登录后访问订单页。" })} />;
+  const params = await searchParams;
   const orders = await listCustomerOrders(user.id);
   return (
     <>
@@ -19,6 +24,11 @@ export default async function OrdersPage() {
           <p>展示订单号、商品、状态、运单号、金额、物流时间线和确认收货入口。</p>
         </div>
       </div>
+      {params?.payment === "success" ? (
+        <div className="form-feedback success" role="status" aria-live="polite" style={{ marginBottom: 18 }}>
+          虚拟支付成功，订单 {params.orderNo ?? ""} 已进入待发货
+        </div>
+      ) : null}
       <Card className="panel table-wrap">
         <table className="table">
           <thead>

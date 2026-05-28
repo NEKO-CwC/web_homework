@@ -15,6 +15,7 @@ export default async function MerchantProductsPage({
   searchParams?: Promise<{
     productStatus?: string;
     productPage?: string;
+    status?: string;
   }>;
 }) {
   const { user, denied } = await requireSessionUser("merchant");
@@ -42,6 +43,7 @@ export default async function MerchantProductsPage({
   ]);
   const products = productsPage.items;
   const merchantProducts = formatProductList(products);
+  const justApproved = params?.status === "merchant-approved";
 
   return (
     <>
@@ -51,6 +53,11 @@ export default async function MerchantProductsPage({
           <p>维护店铺资料，创建、编辑、上架、下架自己的商品，并校验价格、库存、图片。</p>
         </div>
       </div>
+      {justApproved ? (
+        <div className="form-feedback success" role="status" aria-live="polite" style={{ marginBottom: 18 }}>
+          开店申请已自动通过，店铺已生成
+        </div>
+      ) : null}
       <div className="grid aside">
         <Card className="panel">
           <div className="top-actions" style={{ justifyContent: "space-between" }}>
