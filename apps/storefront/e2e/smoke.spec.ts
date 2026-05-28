@@ -482,6 +482,11 @@ test("customer can confirm receipt and submit a product review", async ({ page }
   await reviewForm.getByLabel("评价内容").fill("确认收货后补充评价，降噪表现稳定。");
   await reviewForm.getByRole("button", { name: "提交评价" }).click();
   await expect(page.getByText("评价已提交")).toBeVisible();
+
+  await page.goto("/after-sale");
+  const reviewedOption = page.locator("#orderItemId option").filter({ hasText: orderNo });
+  await expect(reviewedOption).toContainText("已评价");
+  await expect(reviewedOption).toBeDisabled();
 });
 
 test("customer can upload after-sale evidence before submitting", async ({ page }) => {

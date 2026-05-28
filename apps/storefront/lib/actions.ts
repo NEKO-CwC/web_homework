@@ -309,12 +309,16 @@ export async function reviewAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("评价提交失败", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
-  const message = await getMallWriteService().submitReview({
-    userId: await requireActorId("customer"),
-    ...parsed.data
-  });
-  revalidatePaths(["/", "/orders", "/after-sale"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().submitReview({
+      userId: await requireActorId("customer"),
+      ...parsed.data
+    });
+    revalidatePaths(["/", "/orders", "/after-sale"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "评价提交失败");
+  }
 }
 
 export async function afterSaleAction(_: ActionState, formData: FormData) {
