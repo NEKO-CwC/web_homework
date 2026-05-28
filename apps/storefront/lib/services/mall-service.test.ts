@@ -503,6 +503,41 @@ describe("PrismaMallWriteService", () => {
       account: "customer@example.com",
       password: "wrong-pass"
     })).rejects.toThrow("账号或密码错误");
+    expect(db.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("records successful administrator login without storing credentials", async () => {
+    const db = createMockDb();
+    db.user.findFirst.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      phone: null,
+      passwordHash: await hashPassword("12345678", "fixed-salt"),
+      role: "ADMIN",
+      status: "ACTIVE"
+    });
+    db.auditLog.create.mockResolvedValue({});
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.login({
+      account: "admin@example.com",
+      password: "12345678"
+    })).resolves.toMatchObject({
+      message: "登录成功，已进入管理员后台",
+      user: { id: "admin-1", role: "ADMIN" }
+    });
+
+    expect(db.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        actorId: "admin-1",
+        action: "ADMIN_LOGIN",
+        targetType: "User",
+        targetId: "admin-1",
+        metadata: { account: "admin@example.com" },
+        result: "SUCCESS",
+        ipAddress: "127.0.0.1"
+      }
+    });
   });
 
   it("registers a customer with a hashed password and profile", async () => {

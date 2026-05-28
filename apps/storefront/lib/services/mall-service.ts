@@ -402,6 +402,19 @@ export class PrismaMallWriteService implements MallWriteService {
     if (!(await verifyPassword(input.password, user.passwordHash))) {
       throw new Error("账号或密码错误");
     }
+    if (user.role === "ADMIN") {
+      await db.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "ADMIN_LOGIN",
+          targetType: "User",
+          targetId: user.id,
+          metadata: { account: input.account },
+          result: "SUCCESS",
+          ipAddress: "127.0.0.1"
+        }
+      });
+    }
     const message = user.role === "ADMIN"
       ? "登录成功，已进入管理员后台"
       : user.role === "MERCHANT"
