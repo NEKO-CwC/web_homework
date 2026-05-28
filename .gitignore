@@ -6,6 +6,7 @@ playwright-report
 test-results
 artifacts
 dev-server.log
+dev-server.err.log
 packages/db/generated
 .env
 .env.*
