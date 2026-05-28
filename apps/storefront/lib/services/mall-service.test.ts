@@ -274,6 +274,20 @@ describe("DemoMallWriteService", () => {
       message: "登录成功，已进入管理员后台",
       user: { id: "admin-1", role: "ADMIN" }
     });
+    await expect(listAuditLogs({
+      actorRole: "ADMIN",
+      targetType: "User",
+      keyword: "ADMIN_LOGIN"
+    })).resolves.toEqual([
+      expect.objectContaining({
+        action: "ADMIN_LOGIN",
+        targetId: "admin-1",
+        metadataSummary: "result=SUCCESS"
+      })
+    ]);
+    await expect(listAuditLogs({
+      keyword: "12345678"
+    })).resolves.toEqual([]);
     await expect(service.login({
       account: "customer@example.com",
       password: "wrong-pass"

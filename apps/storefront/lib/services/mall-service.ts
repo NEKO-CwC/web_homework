@@ -274,6 +274,15 @@ export class DemoMallWriteService implements MallWriteService {
   async login(input: { account: string; password: string }): Promise<AuthResult> {
     if (input.account === "admin@example.com") {
       if (!(await assertDemoPassword(input.password))) throw new Error("账号或密码错误");
+      appendDemoAuditLog({
+        actorId: DEFAULT_ADMIN_ID,
+        actorName: "平台管理员",
+        actorRole: "ADMIN",
+        action: "ADMIN_LOGIN",
+        targetType: "User",
+        targetId: DEFAULT_ADMIN_ID,
+        metadata: { result: "SUCCESS" }
+      });
       return {
         message: "登录成功，已进入管理员后台",
         user: {

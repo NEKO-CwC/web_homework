@@ -854,8 +854,16 @@ test("administrator can edit home banner status and system settings", async ({ p
 test("administrator can filter audit logs", async ({ page }) => {
   await login(page, "admin@example.com");
   await page.goto("/admin/system");
-  await page.getByLabel("角色").selectOption("MERCHANT");
+  await page.getByLabel("对象类型").selectOption("User");
+  await page.getByLabel("关键词").fill("ADMIN_LOGIN");
+  await page.getByRole("button", { name: "筛选日志" }).click();
+  await expect(page.getByRole("cell", { name: "ADMIN_LOGIN" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "User:admin-1" })).toBeVisible();
+  await expect(page.getByText("12345678")).toHaveCount(0);
+
   await page.getByLabel("对象类型").selectOption("Order");
+  await page.getByLabel("关键词").fill("");
+  await page.getByLabel("角色").selectOption("MERCHANT");
   await page.getByRole("button", { name: "筛选日志" }).click();
   await expect(page).toHaveURL(/actorRole=MERCHANT/);
   await expect(page).toHaveURL(/targetType=Order/);

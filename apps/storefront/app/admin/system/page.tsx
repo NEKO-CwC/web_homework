@@ -122,6 +122,7 @@ export default async function AdminSystemPage({
             <select id="targetType" name="targetType" defaultValue={filters.targetType}>
               <option value="">全部对象</option>
               <option value="MerchantApplication">商家申请</option>
+              <option value="User">用户登录</option>
               <option value="Order">订单</option>
               <option value="AfterSaleRequest">售后</option>
               <option value="SystemSetting">系统配置</option>
