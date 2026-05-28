@@ -10,3 +10,4 @@ updated_at: 2026-05-29
 
 - [database-integration.md](database-integration.md) - verified real PostgreSQL integration status and safety notes.
 - [prd-implementation-status.md](prd-implementation-status.md) - current PRD audit boundary and deferred Compose/CI status.
+- [ui-redesign-source-of-truth.md](ui-redesign-source-of-truth.md) - authority boundary and phased direction for商城化 UI redesign.
