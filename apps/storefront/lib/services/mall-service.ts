@@ -43,6 +43,14 @@ function assertDemoPassword(password: string, storedHash?: string) {
   return Promise.resolve(password === DEMO_PASSWORD);
 }
 
+function validateProductInput(input: ProductInput) {
+  if (input.name.trim().length < 2) throw new Error("商品名称至少 2 个字");
+  if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) throw new Error("商品价格必须大于 0");
+  if (!Number.isInteger(input.stock) || input.stock < 0) throw new Error("商品库存必须是非负整数");
+  if (!input.imageUrl.trim()) throw new Error("请提供商品图片");
+  if (input.description.trim().length < 8) throw new Error("商品介绍至少 8 个字");
+}
+
 export interface CheckoutInput {
   userId?: string;
   receiver: string;
@@ -310,6 +318,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async publishProduct(input: ProductInput) {
+    validateProductInput(input);
     publishDemoProduct(input);
     return "商品已发布到顾客前台";
   }
@@ -320,6 +329,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async updateProduct(input: ProductUpdateInput) {
+    validateProductInput(input);
     updateDemoProduct(input);
     return "商品资料已保存";
   }
@@ -944,6 +954,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async publishProduct(input: ProductInput) {
+    validateProductInput(input);
     const db = await this.getDb();
     const store = await db.store.findUnique({ where: { id: input.storeId } });
     if (!store) throw new Error("店铺不存在，无法发布商品");
@@ -988,6 +999,7 @@ export class PrismaMallWriteService implements MallWriteService {
   }
 
   async updateProduct(input: ProductUpdateInput) {
+    validateProductInput(input);
     const db = await this.getDb();
     const product = await db.product.findUnique({
       where: { id: input.productId },

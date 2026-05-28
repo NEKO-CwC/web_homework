@@ -332,7 +332,7 @@ describe("DemoMallWriteService", () => {
       priceCents: 32900,
       stock: 10,
       imageUrl: "/products/lamp.png",
-      description: "低眩光面板。"
+      description: "低眩光面板和三档色温。"
     })).resolves.toContain("商品资料已保存");
     await expect(service.updateProductStatus({
       productId: "prod-lamp",
@@ -478,6 +478,29 @@ describe("DemoMallWriteService", () => {
       status: "ACTIVE"
     })).resolves.toContain("商品已上架");
     expect(listDemoAvailableProducts().some((product) => product.id === "prod-lamp")).toBe(true);
+  });
+
+  it("rejects invalid demo product payloads before writing", async () => {
+    await expect(service.publishProduct({
+      actorId: "merchant-1",
+      storeId: "store-minimal",
+      name: "无效商品",
+      priceCents: 0,
+      stock: 3,
+      imageUrl: "/products/invalid.png",
+      description: "价格不能为零。"
+    })).rejects.toThrow("商品价格必须大于 0");
+
+    await expect(service.updateProduct({
+      actorId: "merchant-1",
+      productId: "prod-lamp",
+      storeId: "store-minimal",
+      name: "空气感智能台灯",
+      priceCents: 32900,
+      stock: -1,
+      imageUrl: "/products/lamp.jpg",
+      description: "库存不能是负数。"
+    })).rejects.toThrow("商品库存必须是非负整数");
   });
 
   it("rejects demo cart and shipment invalid transitions", async () => {
@@ -1128,6 +1151,36 @@ describe("PrismaMallWriteService", () => {
       categoryId: "cat-home",
       description: "这不是自己的店铺。"
     })).rejects.toThrow("只能维护自己的店铺");
+  });
+
+  it("validates prisma product payloads before database writes", async () => {
+    const db = createMockDb();
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.publishProduct({
+      actorId: "merchant-1",
+      storeId: "store-minimal",
+      name: "新品",
+      priceCents: 9900,
+      stock: -1,
+      imageUrl: "/products/new.png",
+      description: "库存不能是负数。"
+    })).rejects.toThrow("商品库存必须是非负整数");
+    expect(db.store.findUnique).not.toHaveBeenCalled();
+    expect(db.product.create).not.toHaveBeenCalled();
+
+    await expect(service.updateProduct({
+      actorId: "merchant-1",
+      productId: "prod-lamp",
+      storeId: "store-minimal",
+      name: "空气感智能台灯",
+      priceCents: 32900,
+      stock: 5,
+      imageUrl: "",
+      description: "商品图片不能为空。"
+    })).rejects.toThrow("请提供商品图片");
+    expect(db.product.findUnique).not.toHaveBeenCalled();
+    expect(db.product.update).not.toHaveBeenCalled();
   });
 
   it("updates a product and its image for the owning merchant", async () => {
