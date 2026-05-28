@@ -122,25 +122,29 @@ export async function logoutAction(): Promise<ActionState> {
 }
 
 export async function uploadImageAction(_: ActionState, formData: FormData) {
-  const scope = formValue(formData, "scope") || "product";
-  if (!isUploadScope(scope)) return fail("上传类型不支持");
-  if (scope === "license" || scope === "evidence") {
-    await requireActorId("customer");
-  } else if (scope === "product") {
-    await requireActorId("merchant");
-  } else {
-    await requireActorId("admin");
+  try {
+    const scope = formValue(formData, "scope") || "product";
+    if (!isUploadScope(scope)) return fail("上传类型不支持");
+    if (scope === "license" || scope === "evidence") {
+      await requireActorId("customer");
+    } else if (scope === "product") {
+      await requireActorId("merchant");
+    } else {
+      await requireActorId("admin");
+    }
+
+    const file = await fileFromFormData(formData, "file");
+    const validation = validateImageUpload(file);
+    if (!validation.ok) return fail(validation.message, { file: validation.message });
+    if (!file) return fail("请选择要上传的图片", { file: "请选择要上传的图片" });
+
+    const result = await saveUploadedImage(scope, file);
+    if (!result.ok) return fail(result.message, { file: result.message });
+
+    return ok("图片上传成功", { imageUrl: result.imageUrl });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "图片上传失败");
   }
-
-  const file = await fileFromFormData(formData, "file");
-  const validation = validateImageUpload(file);
-  if (!validation.ok) return fail(validation.message, { file: validation.message });
-  if (!file) return fail("请选择要上传的图片", { file: "请选择要上传的图片" });
-
-  const result = await saveUploadedImage(scope, file);
-  if (!result.ok) return fail(result.message, { file: result.message });
-
-  return ok("图片上传成功", { imageUrl: result.imageUrl });
 }
 
 export async function saveProfileAction(_: ActionState, formData: FormData) {

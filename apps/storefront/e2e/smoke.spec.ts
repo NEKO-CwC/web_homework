@@ -502,6 +502,20 @@ test("customer can upload after-sale evidence before submitting", async ({ page 
   await expect(page.getByLabel("凭证图片")).toHaveValue(/\/uploads\/evidence-/);
 });
 
+test("upload permissions return visible feedback after the session expires", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await page.goto("/merchant/apply");
+  await page.context().clearCookies();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "license.png",
+    mimeType: "image/png",
+    buffer: pngUploadBuffer()
+  });
+  await page.getByRole("button", { name: "上传图片" }).click();
+  await expect(page.getByText("请先登录后再操作")).toBeVisible();
+  await expect(page).toHaveURL(/\/merchant\/apply/);
+});
+
 test("customer sees stale after-sale business errors without leaving the page", async ({ page }) => {
   await login(page, "customer@example.com");
   await page.goto("/after-sale");
