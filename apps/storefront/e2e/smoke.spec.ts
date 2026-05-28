@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
+function pngUploadBuffer() {
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l83xNwAAAABJRU5ErkJggg==",
+    "base64"
+  );
+}
+
 const coreRoutes = [
   ["/", "精选商品"],
   ["/products/prod-lamp", "商品详情"],
@@ -368,7 +375,7 @@ test("customer can upload after-sale evidence before submitting", async ({ page 
   await page.locator('input[type="file"]').setInputFiles({
     name: "evidence.png",
     mimeType: "image/png",
-    buffer: Buffer.from("png")
+    buffer: pngUploadBuffer()
   });
   await page.getByRole("button", { name: "上传图片" }).click();
   await expect(page.getByText("图片上传成功")).toBeVisible();
@@ -509,7 +516,7 @@ test("merchant can save store and product management forms", async ({ page }, te
   await fileInputs.first().setInputFiles({
     name: "lamp.png",
     mimeType: "image/png",
-    buffer: Buffer.from("png")
+    buffer: pngUploadBuffer()
   });
   await page.getByRole("button", { name: "上传图片" }).first().click();
   await expect(page.getByText("图片上传成功")).toBeVisible();
@@ -607,6 +614,14 @@ test("administrator can filter and paginate merchant tables", async ({ page }) =
 test("administrator can edit home banner status and system settings", async ({ page }) => {
   await login(page, "admin@example.com");
   await page.goto("/admin/home");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "banner.png",
+    mimeType: "image/png",
+    buffer: pngUploadBuffer()
+  });
+  await page.getByRole("button", { name: "上传图片" }).click();
+  await expect(page.getByText("图片上传成功")).toBeVisible();
+  await expect(page.getByLabel("图片")).toHaveValue(/\/uploads\/banner-/);
   await page.getByRole("textbox", { name: "标题", exact: true }).fill("验收 Banner");
   await page.getByRole("textbox", { name: "副标题" }).fill("首页保存后同步展示");
   await page.getByRole("button", { name: "保存首页配置" }).click();
@@ -618,6 +633,7 @@ test("administrator can edit home banner status and system settings", async ({ p
   await page.goto("/admin/home");
   await page.getByRole("textbox", { name: "标题", exact: true }).fill("桌面焕新季");
   await page.getByRole("textbox", { name: "副标题" }).fill("精选智能台灯、收纳与办公配件。");
+  await page.getByLabel("图片").fill("/banners/desk-refresh.jpg");
   await page.getByLabel("上线状态").selectOption("OFFLINE");
   await page.getByRole("button", { name: "保存首页配置" }).click();
   await expect(page.getByText("首页配置已保存")).toBeVisible();

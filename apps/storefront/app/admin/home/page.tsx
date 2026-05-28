@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Card, StatusBadge } from "@minimal-mall/ui";
 import { AccessDenied } from "@/app/components/AccessDenied";
 import { ActionForm } from "@/app/components/ActionForm";
+import { ImageUploadField } from "@/app/components/ImageUploadField";
 import { saveHomeAction } from "@/lib/actions";
 import { listCategories, listHomeBannersForAdmin } from "@/lib/data";
 import { requireSessionUser } from "@/lib/session";
@@ -51,10 +52,13 @@ export default async function AdminHomePage() {
                     <label htmlFor="subtitle">副标题</label>
                     <input id="subtitle" name="subtitle" defaultValue={primary.subtitle} />
                   </div>
-                  <div className="field">
-                    <label htmlFor="imageUrl">图片</label>
-                    <input id="imageUrl" name="imageUrl" defaultValue={primary.imageUrl} />
-                  </div>
+                  <ImageUploadField
+                    id="imageUrl"
+                    name="imageUrl"
+                    label="图片"
+                    defaultValue={primary.imageUrl}
+                    scope="banner"
+                  />
                   <div className="field">
                     <label htmlFor="linkUrl">跳转链接</label>
                     <input id="linkUrl" name="linkUrl" defaultValue={primary.linkUrl} />
