@@ -149,20 +149,24 @@ export default async function MerchantOrdersPage({
             {item.merchantReply ? (
               <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>处理说明：{item.merchantReply}</p>
             ) : null}
-            <ActionForm action={handleAfterSaleAction} submitLabel="提交处理" variant="secondary">
-              <input type="hidden" name="afterSaleId" value={item.id} />
-              <div className="field">
-                <label htmlFor={`action-${item.id}`}>处理结果</label>
-                <select id={`action-${item.id}`} name="action" defaultValue="approve">
-                  <option value="approve">通过售后</option>
-                  <option value="reject">驳回售后</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor={`reply-${item.id}`}>处理说明</label>
-                <textarea id={`reply-${item.id}`} name="reply" defaultValue="同意换货，请顾客保持包装完整并等待虚拟退回单。" />
-              </div>
-            </ActionForm>
+            {item.status === "REQUESTED" ? (
+              <ActionForm action={handleAfterSaleAction} submitLabel="提交处理" variant="secondary">
+                <input type="hidden" name="afterSaleId" value={item.id} />
+                <div className="field">
+                  <label htmlFor={`action-${item.id}`}>处理结果</label>
+                  <select id={`action-${item.id}`} name="action" defaultValue="approve">
+                    <option value="approve">通过售后</option>
+                    <option value="reject">驳回售后</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor={`reply-${item.id}`}>处理说明</label>
+                  <textarea id={`reply-${item.id}`} name="reply" defaultValue="同意换货，请顾客保持包装完整并等待虚拟退回单。" />
+                </div>
+              </ActionForm>
+            ) : (
+              <button className="ui-button ui-button--secondary" type="button" disabled>已处理</button>
+            )}
           </Card>
         ))}
       </div>

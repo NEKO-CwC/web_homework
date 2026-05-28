@@ -61,6 +61,7 @@ function createMockDb() {
       create: vi.fn(),
       findUnique: vi.fn(),
       findFirst: vi.fn(),
+      count: vi.fn(),
       update: vi.fn()
     },
     merchantApplication: {
@@ -230,6 +231,9 @@ describe("DemoMallWriteService", () => {
     expect(listDemoAfterSales().find((item) => item.id === "after-1")).toMatchObject({
       status: "APPROVED",
       merchantReply: "同意换货"
+    });
+    expect(getDemoOrder("MO20260526002")).toMatchObject({
+      status: "AFTER_SALE"
     });
   });
 
@@ -1354,6 +1358,7 @@ describe("PrismaMallWriteService", () => {
       }
     });
     db.afterSaleRequest.update.mockResolvedValue({});
+    db.afterSaleRequest.count.mockResolvedValue(0);
     db.orderItem.update.mockResolvedValue({});
     db.order.update.mockResolvedValue({});
     db.auditLog.create.mockResolvedValue({});
@@ -1373,6 +1378,13 @@ describe("PrismaMallWriteService", () => {
         merchantReply: "商品不符合售后条件"
       }
     });
+    expect(db.afterSaleRequest.count).toHaveBeenCalledWith({
+      where: {
+        id: { not: "after-1" },
+        status: { in: ["REQUESTED", "APPROVED", "RETURNING"] },
+        orderItem: { orderId: "order-4" }
+      }
+    });
     expect(db.orderItem.update).toHaveBeenCalledWith({
       where: { id: "item-4" },
       data: { status: "DELIVERED" }
@@ -1386,6 +1398,55 @@ describe("PrismaMallWriteService", () => {
         action: "AFTER_SALE_REJECT",
         targetId: "after-1",
         metadata: { reply: "商品不符合售后条件", status: "REJECTED" }
+      })
+    }));
+  });
+
+  it("approves after-sale requests and keeps the customer order in after-sale state", async () => {
+    const db = createMockDb();
+    db.afterSaleRequest.findUnique.mockResolvedValue({
+      id: "after-2",
+      status: "REQUESTED",
+      orderItemId: "item-6",
+      orderItem: {
+        orderId: "order-6",
+        store: { ownerId: "merchant-1" }
+      }
+    });
+    db.afterSaleRequest.update.mockResolvedValue({});
+    db.orderItem.update.mockResolvedValue({});
+    db.order.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
+    const service = new PrismaMallWriteService(db as never);
+
+    await expect(service.handleAfterSale({
+      actorId: "merchant-1",
+      afterSaleId: "after-2",
+      action: "approve",
+      reply: "同意退货退款"
+    })).resolves.toContain("售后已通过");
+
+    expect(db.afterSaleRequest.count).not.toHaveBeenCalled();
+    expect(db.afterSaleRequest.update).toHaveBeenCalledWith({
+      where: { id: "after-2" },
+      data: {
+        status: "APPROVED",
+        merchantReply: "同意退货退款"
+      }
+    });
+    expect(db.orderItem.update).toHaveBeenCalledWith({
+      where: { id: "item-6" },
+      data: { status: "AFTER_SALE" }
+    });
+    expect(db.order.update).toHaveBeenCalledWith({
+      where: { id: "order-6" },
+      data: { status: "AFTER_SALE" }
+    });
+    expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "AFTER_SALE_APPROVE",
+        targetId: "after-2",
+        metadata: { reply: "同意退货退款", status: "APPROVED" }
       })
     }));
   });

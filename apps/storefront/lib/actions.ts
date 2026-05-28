@@ -539,14 +539,18 @@ export async function handleAfterSaleAction(_: ActionState, formData: FormData) 
   const afterSaleId = formValue(formData, "afterSaleId");
   const reply = formValue(formData, "reply");
   if (!reply) return fail("请填写处理说明", { reply: "请填写处理说明" });
-  const message = await getMallWriteService().handleAfterSale({
-    actorId: await requireActorId("merchant"),
-    afterSaleId,
-    action: action === "reject" ? "reject" : "approve",
-    reply
-  });
-  revalidatePaths(["/orders", "/after-sale", "/merchant/orders", "/admin/system"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().handleAfterSale({
+      actorId: await requireActorId("merchant"),
+      afterSaleId,
+      action: action === "reject" ? "reject" : "approve",
+      reply
+    });
+    revalidatePaths(["/orders", "/after-sale", "/merchant/orders", "/admin/system"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "售后处理失败");
+  }
 }
 
 export async function merchantReviewAction(_: ActionState, formData: FormData) {

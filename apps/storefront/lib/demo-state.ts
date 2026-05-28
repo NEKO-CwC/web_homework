@@ -417,6 +417,7 @@ export function updateDemoAfterSale(input: {
 
   request.status = nextAfterSaleStatus(request.status as AfterSaleStatus, input.action);
   request.merchantReply = input.reply;
+  order.status = request.status === "REJECTED" ? "DELIVERED" : "AFTER_SALE";
   return { ...request };
 }
 

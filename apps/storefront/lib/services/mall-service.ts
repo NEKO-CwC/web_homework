@@ -1130,6 +1130,15 @@ export class PrismaMallWriteService implements MallWriteService {
 
     const nextStatus = nextAfterSaleStatus(request.status, input.action);
     await db.$transaction(async (tx) => {
+      const otherOpenAfterSales = input.action === "reject"
+        ? await tx.afterSaleRequest.count({
+          where: {
+            id: { not: request.id },
+            status: { in: ["REQUESTED", "APPROVED", "RETURNING"] },
+            orderItem: { orderId: request.orderItem.orderId }
+          }
+        })
+        : 0;
       await tx.afterSaleRequest.update({
         where: { id: request.id },
         data: {
@@ -1137,16 +1146,15 @@ export class PrismaMallWriteService implements MallWriteService {
           merchantReply: input.reply
         }
       });
-      if (nextStatus === "REJECTED") {
-        await tx.orderItem.update({
-          where: { id: request.orderItemId },
-          data: { status: "DELIVERED" }
-        });
-        await tx.order.update({
-          where: { id: request.orderItem.orderId },
-          data: { status: "DELIVERED" }
-        });
-      }
+      const restoredStatus = otherOpenAfterSales > 0 ? "AFTER_SALE" : "DELIVERED";
+      await tx.orderItem.update({
+        where: { id: request.orderItemId },
+        data: { status: nextStatus === "REJECTED" ? restoredStatus : "AFTER_SALE" }
+      });
+      await tx.order.update({
+        where: { id: request.orderItem.orderId },
+        data: { status: nextStatus === "REJECTED" ? restoredStatus : "AFTER_SALE" }
+      });
       await tx.auditLog.create({
         data: {
           actorId: input.actorId ?? DEFAULT_MERCHANT_ID,
