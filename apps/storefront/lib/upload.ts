@@ -50,7 +50,15 @@ type UploadStorage = {
   writeFile?: typeof writeFile;
 };
 
+function shouldSimulateUploadFailure(fileName: string) {
+  return process.env.NODE_ENV !== "production" && fileName.startsWith("__simulate-upload-failure");
+}
+
 export async function saveUploadedImage(scope: UploadScope, file: UploadFile, storage: UploadStorage = {}) {
+  if (shouldSimulateUploadFailure(file.name)) {
+    return { ok: false as const, message: "图片上传失败，请稍后重试" };
+  }
+
   const finalExtension = resolveUploadExtension(file.name, file.type);
   const relativePath = `/uploads/${scope}-${storage.now?.() ?? Date.now()}-${storage.randomId?.() ?? randomUUID()}${finalExtension}`;
   const publicDir = join(storage.cwd ?? process.cwd(), "public");

@@ -79,4 +79,20 @@ describe("image upload validation", () => {
       }
     )).resolves.toEqual({ ok: false, message: "图片上传失败，请稍后重试" });
   });
+
+  it("simulates storage failure for page-level E2E outside production", async () => {
+    await expect(saveUploadedImage(
+      "product",
+      {
+        name: "__simulate-upload-failure.png",
+        type: "image/png",
+        arrayBuffer: async () => testArrayBuffer("png")
+      },
+      {
+        writeFile: async () => {
+          throw new Error("should not write simulated failures");
+        }
+      }
+    )).resolves.toEqual({ ok: false, message: "图片上传失败，请稍后重试" });
+  });
 });

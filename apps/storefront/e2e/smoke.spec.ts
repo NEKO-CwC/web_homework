@@ -502,6 +502,19 @@ test("customer can upload after-sale evidence before submitting", async ({ page 
   await expect(page.getByLabel("凭证图片")).toHaveValue(/\/uploads\/evidence-/);
 });
 
+test("image upload surfaces simulated storage failures", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await page.goto("/after-sale");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "__simulate-upload-failure.png",
+    mimeType: "image/png",
+    buffer: pngUploadBuffer()
+  });
+  await page.getByRole("button", { name: "上传图片" }).click();
+  await expect(page.getByText("图片上传失败，请稍后重试")).toBeVisible();
+  await expect(page.getByLabel("凭证图片")).toHaveValue("");
+});
+
 test("upload permissions return visible feedback after the session expires", async ({ page }) => {
   await login(page, "customer@example.com");
   await page.goto("/merchant/apply");
