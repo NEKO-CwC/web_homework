@@ -113,6 +113,7 @@ export interface ProductUpdateInput extends ProductInput {
 }
 
 export interface HomeBannerInput {
+  actorId?: string;
   id?: string;
   title: string;
   subtitle?: string;
@@ -333,6 +334,7 @@ export class DemoMallWriteService implements MallWriteService {
   }
 
   async saveHomeBanner(input: HomeBannerInput) {
+    void input.actorId;
     saveDemoHomeBanner(input);
     return "首页配置已保存，顾客首页展示已更新";
   }
@@ -1230,6 +1232,8 @@ export class PrismaMallWriteService implements MallWriteService {
 
   async saveHomeBanner(input: HomeBannerInput) {
     const db = await this.getDb();
+    if (!input.actorId) throw new Error("只有管理员可以保存首页配置");
+    const targetId = input.id ?? "new";
     if (input.id) {
       await db.homeBanner.update({
         where: { id: input.id },
@@ -1253,6 +1257,20 @@ export class PrismaMallWriteService implements MallWriteService {
         }
       });
     }
+    await db.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "HOME_BANNER_SAVE",
+        targetType: "HomeBanner",
+        targetId,
+        metadata: {
+          title: input.title,
+          status: input.status
+        },
+        result: "SUCCESS",
+        ipAddress: "127.0.0.1"
+      }
+    });
     return "首页配置已保存，顾客首页展示已更新";
   }
 

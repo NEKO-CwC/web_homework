@@ -1528,9 +1528,11 @@ describe("PrismaMallWriteService", () => {
   it("persists the requested home banner status", async () => {
     const db = createMockDb();
     db.homeBanner.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
     const service = new PrismaMallWriteService(db as never);
 
     await expect(service.saveHomeBanner({
+      actorId: "admin-1",
       id: "banner-1",
       title: "桌面焕新季",
       subtitle: "精选智能台灯",
@@ -1543,6 +1545,26 @@ describe("PrismaMallWriteService", () => {
       where: { id: "banner-1" },
       data: expect.objectContaining({ status: "OFFLINE" })
     }));
+    expect(db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        actorId: "admin-1",
+        action: "HOME_BANNER_SAVE",
+        targetType: "HomeBanner",
+        targetId: "banner-1",
+        metadata: {
+          title: "桌面焕新季",
+          status: "OFFLINE"
+        }
+      })
+    }));
+
+    await expect(service.saveHomeBanner({
+      id: "banner-1",
+      title: "未授权首页",
+      imageUrl: "/banners/desk-refresh.jpg",
+      linkUrl: "/",
+      status: "ONLINE"
+    })).rejects.toThrow("只有管理员可以保存首页配置");
   });
 
   it("updates an explicit system setting value and audits the change", async () => {

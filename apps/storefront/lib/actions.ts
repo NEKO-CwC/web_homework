@@ -594,9 +594,16 @@ export async function saveHomeAction(_: ActionState, formData: FormData) {
   if (!parsed.success) {
     return fail("首页配置保存失败", parsed.error.flatten().fieldErrors as Record<string, string>);
   }
-  const message = await getMallWriteService().saveHomeBanner(parsed.data);
-  revalidatePaths(["/", "/admin/home", "/admin"]);
-  return ok(message);
+  try {
+    const message = await getMallWriteService().saveHomeBanner({
+      actorId: await requireActorId("admin"),
+      ...parsed.data
+    });
+    revalidatePaths(["/", "/admin/home", "/admin", "/admin/system"]);
+    return ok(message);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "首页配置保存失败");
+  }
 }
 
 export async function systemSettingAction(_: ActionState, formData: FormData) {
