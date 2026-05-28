@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getActiveMerchantStore, listMerchantOrdersPage, merchantSalesCents } from "./merchant";
+import { getActiveMerchantStore, getMerchantStats, listMerchantOrdersPage, merchantSalesCents } from "./merchant";
 
-const findFirst = vi.fn();
-const findMany = vi.fn();
-const count = vi.fn();
+const storeFindFirst = vi.fn();
+const orderFindMany = vi.fn();
+const orderCount = vi.fn();
+const afterSaleCount = vi.fn();
 
 vi.mock("next/cache", () => ({
   unstable_noStore: vi.fn()
@@ -12,11 +13,14 @@ vi.mock("next/cache", () => ({
 vi.mock("@minimal-mall/db", () => ({
   prisma: {
     store: {
-      findFirst
+      findFirst: storeFindFirst
     },
     order: {
-      findMany,
-      count
+      findMany: orderFindMany,
+      count: orderCount
+    },
+    afterSaleRequest: {
+      count: afterSaleCount
     }
   }
 }));
@@ -26,9 +30,10 @@ describe("merchant data access", () => {
 
   beforeEach(() => {
     process.env.MALL_WRITE_MODE = "prisma";
-    findFirst.mockReset();
-    findMany.mockReset();
-    count.mockReset();
+    storeFindFirst.mockReset();
+    orderFindMany.mockReset();
+    orderCount.mockReset();
+    afterSaleCount.mockReset();
   });
 
   afterEach(() => {
@@ -36,10 +41,10 @@ describe("merchant data access", () => {
   });
 
   it("does not fall back to another store when a Prisma merchant has no store", async () => {
-    findFirst.mockResolvedValue(null);
+    storeFindFirst.mockResolvedValue(null);
 
     await expect(getActiveMerchantStore("merchant-without-store")).resolves.toBeUndefined();
-    expect(findFirst).toHaveBeenCalledWith({
+    expect(storeFindFirst).toHaveBeenCalledWith({
       where: { ownerId: "merchant-without-store" },
       orderBy: { createdAt: "asc" }
     });
@@ -48,6 +53,7 @@ describe("merchant data access", () => {
   it("calculates sales from only the current store share of paid order totals", () => {
     expect(merchantSalesCents([
       {
+        status: "TO_SHIP",
         totalAmountCents: 90000,
         items: [
           { storeId: "store-minimal", priceCents: 20000, quantity: 2 },
@@ -55,6 +61,14 @@ describe("merchant data access", () => {
         ]
       },
       {
+        status: "PENDING_PAYMENT",
+        totalAmountCents: 19900,
+        items: [
+          { storeId: "store-minimal", priceCents: 19900, quantity: 1 }
+        ]
+      },
+      {
+        status: "SHIPPED",
         totalAmountCents: 11900,
         items: [
           { storeId: "store-minimal", priceCents: 15900, quantity: 1 }
@@ -64,8 +78,8 @@ describe("merchant data access", () => {
   });
 
   it("returns Prisma merchant orders with real customer display names", async () => {
-    count.mockResolvedValue(1);
-    findMany.mockResolvedValue([
+    orderCount.mockResolvedValue(1);
+    orderFindMany.mockResolvedValue([
       {
         id: "order-real-customer",
         orderNo: "MO20260529001",
@@ -113,7 +127,7 @@ describe("merchant data access", () => {
       ],
       total: 1
     });
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+    expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({
       include: expect.objectContaining({
         user: { include: { customerProfile: true } }
       })
@@ -131,5 +145,53 @@ describe("merchant data access", () => {
         })
       ])
     });
+  });
+
+  it("builds Prisma merchant stats from current store pending after-sales and monthly revenue orders", async () => {
+    orderCount.mockResolvedValue(2);
+    afterSaleCount.mockResolvedValue(1);
+    orderFindMany.mockResolvedValue([
+      {
+        status: "TO_SHIP",
+        totalAmountCents: 10000,
+        items: [
+          { storeId: "store-minimal", priceCents: 6000, quantity: 1 },
+          { storeId: "store-home", priceCents: 4000, quantity: 1 }
+        ]
+      },
+      {
+        status: "DELIVERED",
+        totalAmountCents: 5000,
+        items: [
+          { storeId: "store-minimal", priceCents: 5000, quantity: 1 }
+        ]
+      }
+    ]);
+
+    await expect(getMerchantStats("store-minimal")).resolves.toEqual({
+      toShipCount: 2,
+      afterSaleCount: 1,
+      monthSalesCents: 11000
+    });
+    expect(orderCount).toHaveBeenCalledWith({
+      where: {
+        status: "TO_SHIP",
+        items: { some: { storeId: "store-minimal" } }
+      }
+    });
+    expect(afterSaleCount).toHaveBeenCalledWith({
+      where: {
+        status: "REQUESTED",
+        orderItem: { storeId: "store-minimal" }
+      }
+    });
+    expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        status: { in: ["PAID", "TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "AFTER_SALE"] },
+        createdAt: expect.objectContaining({ gte: expect.any(Date) }),
+        items: { some: { storeId: "store-minimal" } }
+      }),
+      include: { items: true }
+    }));
   });
 });

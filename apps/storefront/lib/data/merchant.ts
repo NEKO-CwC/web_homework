@@ -18,6 +18,7 @@ import {
 import { normalizePagination, paginateArray, type PaginationInput } from "./pagination";
 
 const ACTIVE_MERCHANT_ID = "merchant-1";
+const REVENUE_ORDER_STATUSES: OrderStatus[] = ["PAID", "TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "AFTER_SALE"];
 
 function formatCustomerName(order: {
   userId: string;
@@ -33,6 +34,17 @@ function formatCustomerName(order: {
 function demoCustomerName(userId: string) {
   const profile = findDemoCustomerProfileById(userId);
   return profile?.nickname ?? userId;
+}
+
+function startOfCurrentMonth(now = new Date()) {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function isCurrentMonthOrder(orderNo: string, now = new Date()) {
+  const match = /^MO(\d{4})(\d{2})/.exec(orderNo);
+  if (!match) return true;
+  const [, year, month] = match;
+  return Number(year) === now.getFullYear() && Number(month) === now.getMonth() + 1;
 }
 
 export async function getActiveMerchantStore(ownerId = ACTIVE_MERCHANT_ID) {
@@ -220,23 +232,57 @@ export async function listMerchantAfterSalesPage(storeId = stores[0].id, filters
 }
 
 export async function getMerchantStats(storeId: string) {
+  if (isPrismaDataMode()) {
+    const db = await getPrismaClient();
+    const [toShipCount, afterSaleCount, revenueOrders] = await Promise.all([
+      db.order.count({
+        where: {
+          status: "TO_SHIP",
+          items: { some: { storeId } }
+        }
+      }),
+      db.afterSaleRequest.count({
+        where: {
+          status: "REQUESTED",
+          orderItem: { storeId }
+        }
+      }),
+      db.order.findMany({
+        where: {
+          status: { in: REVENUE_ORDER_STATUSES },
+          createdAt: { gte: startOfCurrentMonth() },
+          items: { some: { storeId } }
+        },
+        include: { items: true }
+      })
+    ]);
+    return {
+      toShipCount,
+      afterSaleCount,
+      monthSalesCents: merchantSalesCents(revenueOrders, storeId)
+    };
+  }
+
   const merchantOrders = await listMerchantOrders(storeId);
   const merchantAfterSales = await listMerchantAfterSales(storeId);
+  const revenueOrders = merchantOrders.filter((order) => isCurrentMonthOrder(order.orderNo));
   return {
     toShipCount: merchantOrders.filter((order) => order.status === "TO_SHIP").length,
-    afterSaleCount: merchantAfterSales.length,
-    monthSalesCents: merchantSalesCents(merchantOrders, storeId)
+    afterSaleCount: merchantAfterSales.filter((item) => item.status === "REQUESTED").length,
+    monthSalesCents: merchantSalesCents(revenueOrders, storeId)
   };
 }
 
 export function merchantSalesCents(
   orders: Array<{
+    status: OrderStatus;
     totalAmountCents: number;
     items: Array<{ storeId: string; priceCents: number; quantity: number }>;
   }>,
   storeId: string
 ) {
   return orders.reduce((sum, order) => {
+    if (!REVENUE_ORDER_STATUSES.includes(order.status)) return sum;
     const orderItemTotal = order.items.reduce(
       (itemSum, item) => itemSum + item.priceCents * item.quantity,
       0
