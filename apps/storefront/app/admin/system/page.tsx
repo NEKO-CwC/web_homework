@@ -125,6 +125,8 @@ export default async function AdminSystemPage({
               <option value="User">用户登录</option>
               <option value="Order">订单</option>
               <option value="AfterSaleRequest">售后</option>
+              <option value="Store">店铺</option>
+              <option value="HomeBanner">首页广告</option>
               <option value="SystemSetting">系统配置</option>
             </select>
           </div>

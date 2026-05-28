@@ -856,6 +856,10 @@ test("administrator can edit home banner status and system settings", async ({ p
 
 test("administrator can filter audit logs", async ({ page }) => {
   await login(page, "admin@example.com");
+  await page.goto("/admin/home");
+  await page.getByRole("button", { name: "保存首页配置" }).click();
+  await expect(page.getByText("首页配置已保存")).toBeVisible();
+
   await page.goto("/admin/system");
   await page.getByLabel("对象类型").selectOption("User");
   await page.getByLabel("关键词").fill("ADMIN_LOGIN");
@@ -877,6 +881,13 @@ test("administrator can filter audit logs", async ({ page }) => {
   await page.getByRole("button", { name: "筛选日志" }).click();
   await expect(page).toHaveURL(/startDate=2026-05-28/);
   await expect(page.getByText("暂无匹配审计日志")).toBeVisible();
+
+  await page.getByLabel("对象类型").selectOption("HomeBanner");
+  await page.getByLabel("角色").selectOption("ADMIN");
+  await page.getByLabel("开始日期").fill("");
+  await page.getByRole("button", { name: "筛选日志" }).click();
+  await expect(page).toHaveURL(/targetType=HomeBanner/);
+  await expect(page.getByRole("cell", { name: "HOME_BANNER_SAVE" }).first()).toBeVisible();
 
   await page.getByLabel("关键词").fill("不存在的日志");
   await page.getByRole("button", { name: "筛选日志" }).click();
