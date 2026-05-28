@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getActiveMerchantStore } from "./merchant";
+import { getActiveMerchantStore, merchantSalesCents } from "./merchant";
 
 const findFirst = vi.fn();
 
@@ -35,5 +35,23 @@ describe("merchant data access", () => {
       where: { ownerId: "merchant-without-store" },
       orderBy: { createdAt: "asc" }
     });
+  });
+
+  it("calculates sales from only the current store share of paid order totals", () => {
+    expect(merchantSalesCents([
+      {
+        totalAmountCents: 90000,
+        items: [
+          { storeId: "store-minimal", priceCents: 20000, quantity: 2 },
+          { storeId: "store-home", priceCents: 60000, quantity: 1 }
+        ]
+      },
+      {
+        totalAmountCents: 11900,
+        items: [
+          { storeId: "store-minimal", priceCents: 15900, quantity: 1 }
+        ]
+      }
+    ], "store-minimal")).toBe(47900);
   });
 });

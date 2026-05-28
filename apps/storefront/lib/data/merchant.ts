@@ -193,6 +193,26 @@ export async function getMerchantStats(storeId: string) {
   return {
     toShipCount: merchantOrders.filter((order) => order.status === "TO_SHIP").length,
     afterSaleCount: merchantAfterSales.length,
-    monthSalesCents: merchantOrders.reduce((sum, order) => sum + order.totalAmountCents, 0)
+    monthSalesCents: merchantSalesCents(merchantOrders, storeId)
   };
+}
+
+export function merchantSalesCents(
+  orders: Array<{
+    totalAmountCents: number;
+    items: Array<{ storeId: string; priceCents: number; quantity: number }>;
+  }>,
+  storeId: string
+) {
+  return orders.reduce((sum, order) => {
+    const orderItemTotal = order.items.reduce(
+      (itemSum, item) => itemSum + item.priceCents * item.quantity,
+      0
+    );
+    const storeItemTotal = order.items
+      .filter((item) => item.storeId === storeId)
+      .reduce((itemSum, item) => itemSum + item.priceCents * item.quantity, 0);
+    if (orderItemTotal <= 0 || storeItemTotal <= 0) return sum;
+    return sum + Math.round(order.totalAmountCents * (storeItemTotal / orderItemTotal));
+  }, 0);
 }
