@@ -83,8 +83,16 @@ a {
   backdrop-filter: blur(24px);
 }
 
+.sidebar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .brand {
   display: flex;
+  min-width: 0;
   gap: 12px;
   align-items: center;
   padding: 8px 8px 22px;
@@ -197,6 +205,11 @@ a {
 }
 
 .menu-button {
+  display: none;
+}
+
+.nav-close,
+.nav-scrim {
   display: none;
 }
 
@@ -1066,8 +1079,30 @@ a {
     transform: translateX(0);
   }
 
+  .nav-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: block;
+    border: 0;
+    background: rgba(10, 14, 22, .36);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-base) var(--ease-standard);
+  }
+
+  .nav-scrim.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .menu-button {
     display: inline-flex;
+  }
+
+  .nav-close {
+    display: inline-flex;
+    flex: none;
   }
 
   .hero-inner,

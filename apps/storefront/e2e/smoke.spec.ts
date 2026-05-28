@@ -179,6 +179,26 @@ test("protected pages require login or the right role", async ({ page }) => {
   await expect(page.getByText("管理员平台总览").first()).toBeVisible();
 });
 
+test("navigation marks the current page and mobile menu can close", async ({ page }) => {
+  await page.goto("/orders");
+  await expect(page.getByRole("link", { name: "订单 / 虚拟物流" })).toHaveAttribute("aria-current", "page");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const menuButton = page.getByRole("button", { name: "打开导航" });
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute("aria-expanded", "true");
+
+  await page.getByRole("button", { name: "关闭导航", exact: true }).click();
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+
+  await menuButton.click();
+  await page.getByRole("link", { name: "商品 / 店铺管理" }).click();
+  await expect(page).toHaveURL(/\/merchant\/products/);
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+});
+
 test.describe("customer route smoke after login", () => {
   test.beforeEach(async ({ page }) => {
     await login(page, "customer@example.com");
