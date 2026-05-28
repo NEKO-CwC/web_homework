@@ -1,6 +1,6 @@
 import type { AuditLog, MerchantApplicationStatus, StoreStatus, UserRole } from "@minimal-mall/types";
-import { auditLogs } from "../fixtures";
 import {
+  listDemoAuditLogs,
   listDemoAfterSales,
   listDemoHomeBanners,
   listDemoMerchantApplications,
@@ -313,7 +313,7 @@ export async function listAuditLogsPage(filters: AuditLogFilters = {}) {
       pageCount: Math.max(1, Math.ceil(total / pageSize))
     };
   }
-  return paginateArray(auditLogs.filter((log) => filterAuditLog(log, filters)), filters);
+  return paginateArray(listDemoAuditLogs().filter((log) => filterAuditLog(log, filters)), filters);
 }
 
 export async function listAdminAfterSales() {

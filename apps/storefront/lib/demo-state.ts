@@ -11,6 +11,7 @@ import type {
   AfterSaleRequest,
   AfterSaleStatus,
   AfterSaleType,
+  AuditLog,
   BannerStatus,
   HomeBanner,
   MerchantApplication,
@@ -22,7 +23,7 @@ import type {
   StoreStatus,
   SystemSetting
 } from "@minimal-mall/types";
-import { afterSales, banners, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
+import { afterSales, auditLogs, banners, currentCustomer, merchantApplications, orders, products, settings, stores } from "./fixtures";
 
 export interface DemoCustomerProfile {
   id: string;
@@ -35,6 +36,7 @@ export interface DemoCustomerProfile {
 
 interface DemoStateStore {
   afterSales: AfterSaleRequest[];
+  auditLogs: AuditLog[];
   banners: HomeBanner[];
   customerProfiles: DemoCustomerProfile[];
   merchantApplications: MerchantApplication[];
@@ -49,6 +51,7 @@ const demoStateKey = Symbol.for("minimal-mall.demo-state");
 function createDemoStateStore(): DemoStateStore {
   return {
     afterSales: cloneAfterSales(afterSales),
+    auditLogs: cloneAuditLogs(auditLogs),
     banners: banners.map((banner) => ({ ...banner })),
     customerProfiles: [cloneCustomerProfile(currentCustomer)],
     merchantApplications: cloneMerchantApplications(merchantApplications),
@@ -88,6 +91,10 @@ function cloneAfterSales(value: AfterSaleRequest[]) {
   return value.map((item) => ({ ...item }));
 }
 
+function cloneAuditLogs(value: AuditLog[]) {
+  return value.map((item) => ({ ...item }));
+}
+
 function cloneMerchantApplications(value: MerchantApplication[]) {
   return value.map((item) => ({ ...item }));
 }
@@ -121,6 +128,40 @@ export function listDemoHomeBanners({ onlineOnly = false } = {}): HomeBanner[] {
     .filter((banner) => !onlineOnly || banner.status === "ONLINE")
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((banner) => ({ ...banner }));
+}
+
+export function listDemoAuditLogs(): AuditLog[] {
+  return cloneAuditLogs(getDemoStateStore().auditLogs);
+}
+
+export function appendDemoAuditLog(input: {
+  actorId?: string;
+  actorName?: string;
+  actorRole: AuditLog["actorRole"];
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata?: Record<string, string | number | boolean | undefined>;
+  result?: string;
+}): AuditLog {
+  const store = getDemoStateStore();
+  const metadataEntries = Object.entries(input.metadata ?? {}).filter(([, value]) => value !== undefined);
+  const log: AuditLog = {
+    id: `audit-demo-${store.auditLogs.length + 1}`,
+    actorName: input.actorName ?? (input.actorRole === "MERCHANT" ? "极简生活旗舰店" : "平台管理员"),
+    actorRole: input.actorRole,
+    action: input.action,
+    targetType: input.targetType,
+    targetId: input.targetId,
+    result: input.result ?? "SUCCESS",
+    metadataSummary: metadataEntries.length > 0
+      ? metadataEntries.map(([key, value]) => `${key}=${String(value)}`).join("；")
+      : "无附加信息",
+    ipAddress: "127.0.0.1",
+    createdAt: formatDemoTimestamp()
+  };
+  store.auditLogs = [log, ...store.auditLogs];
+  return { ...log };
 }
 
 export function saveDemoHomeBanner(input: {
@@ -632,6 +673,7 @@ export function updateDemoSystemSetting(key: string, value: string): SystemSetti
 export function resetDemoState() {
   const store = getDemoStateStore();
   store.afterSales = cloneAfterSales(afterSales);
+  store.auditLogs = cloneAuditLogs(auditLogs);
   store.banners = banners.map((banner) => ({ ...banner }));
   store.customerProfiles = [cloneCustomerProfile(currentCustomer)];
   store.merchantApplications = cloneMerchantApplications(merchantApplications);

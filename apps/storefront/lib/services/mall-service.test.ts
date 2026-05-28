@@ -15,6 +15,7 @@ import {
 } from "../demo-state";
 import {
   listCurrentUserMerchantApplications,
+  listAuditLogs,
   listMerchantApplicationsPage
 } from "../data/admin";
 import { DemoMallWriteService, PrismaMallWriteService } from "./mall-service";
@@ -398,6 +399,97 @@ describe("DemoMallWriteService", () => {
     expect(getDemoOrder("MO20260526002")).toMatchObject({
       status: "AFTER_SALE"
     });
+  });
+
+  it("writes demo audit logs for critical admin and merchant actions", async () => {
+    const shipment = await service.createShipment({
+      actorId: "merchant-1",
+      orderNo: "MO20260528001",
+      status: "TO_SHIP"
+    });
+    await expect(listAuditLogs({
+      actorRole: "MERCHANT",
+      targetType: "Order",
+      keyword: shipment.trackingNo
+    })).resolves.toEqual([
+      expect.objectContaining({
+        action: "CREATE_SHIPMENT",
+        metadataSummary: expect.stringContaining(`trackingNo=${shipment.trackingNo}`)
+      })
+    ]);
+
+    await service.handleAfterSale({
+      actorId: "merchant-1",
+      afterSaleId: "after-1",
+      action: "reject",
+      reply: "不符合售后条件"
+    });
+    await expect(listAuditLogs({
+      actorRole: "MERCHANT",
+      targetType: "AfterSaleRequest",
+      keyword: "不符合售后条件"
+    })).resolves.toEqual([
+      expect.objectContaining({
+        action: "AFTER_SALE_REJECT",
+        targetId: "after-1"
+      })
+    ]);
+
+    await service.reviewMerchantApplication({
+      actorId: "admin-1",
+      applicationId: "apply-1",
+      action: "approve"
+    });
+    await expect(listAuditLogs({
+      actorRole: "ADMIN",
+      targetType: "MerchantApplication",
+      keyword: "MERCHANT_REVIEW_APPROVE"
+    })).resolves.toEqual([
+      expect.objectContaining({
+        action: "MERCHANT_REVIEW_APPROVE",
+        targetId: "apply-1"
+      })
+    ]);
+
+    await service.saveHomeBanner({
+      actorId: "admin-1",
+      id: "banner-1",
+      title: "审计 Banner",
+      subtitle: "保存后写审计",
+      imageUrl: "/banners/desk-refresh.jpg",
+      linkUrl: "/",
+      status: "ONLINE"
+    });
+    await service.updateSystemSetting({
+      actorId: "admin-1",
+      key: "homeCacheVersion"
+    });
+    await service.updateStoreStatus({
+      actorId: "admin-1",
+      storeId: "store-minimal",
+      status: "FROZEN"
+    });
+
+    await expect(listAuditLogs({
+      actorRole: "ADMIN",
+      keyword: "HOME_BANNER_SAVE"
+    })).resolves.toEqual([
+      expect.objectContaining({ action: "HOME_BANNER_SAVE" })
+    ]);
+    await expect(listAuditLogs({
+      actorRole: "ADMIN",
+      targetType: "SystemSetting",
+      keyword: "SYSTEM_SETTING_UPDATE"
+    })).resolves.toEqual([
+      expect.objectContaining({ action: "SYSTEM_SETTING_UPDATE" })
+    ]);
+    await expect(listAuditLogs({
+      actorRole: "ADMIN",
+      targetType: "Store",
+      keyword: "STORE_FREEZE"
+    })).resolves.toEqual([
+      expect.objectContaining({ action: "STORE_FREEZE" })
+    ]);
   });
 
   it("covers demo write operations with deterministic feedback", async () => {

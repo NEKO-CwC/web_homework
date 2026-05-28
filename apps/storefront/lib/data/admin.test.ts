@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  appendDemoAuditLog,
   createDemoMerchantApplication,
   resetDemoSystemSettings,
   saveDemoHomeBanner,
@@ -205,6 +206,38 @@ describe("admin data filters", () => {
     })).resolves.toMatchObject({
       total: 0,
       items: []
+    });
+  });
+
+  it("includes newly appended demo audit logs in admin filters", async () => {
+    const log = appendDemoAuditLog({
+      actorRole: "ADMIN",
+      action: "SYSTEM_SETTING_UPDATE",
+      targetType: "SystemSetting",
+      targetId: "memberRegistration",
+      metadata: { from: "enabled", to: "disabled" }
+    });
+
+    await expect(listAuditLogs({
+      keyword: "memberRegistration"
+    })).resolves.toEqual([
+      expect.objectContaining({
+        id: log.id,
+        targetType: "SystemSetting",
+        metadataSummary: "from=enabled；to=disabled"
+      })
+    ]);
+    await expect(listAuditLogsPage({
+      actorRole: "ADMIN",
+      targetType: "SystemSetting",
+      result: "SUCCESS",
+      keyword: "disabled",
+      pageSize: 5
+    })).resolves.toMatchObject({
+      total: 1,
+      items: [
+        expect.objectContaining({ id: log.id })
+      ]
     });
   });
 });

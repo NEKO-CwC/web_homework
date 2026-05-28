@@ -12,6 +12,7 @@ import {
 } from "@minimal-mall/auth";
 import type { AfterSaleType, BannerStatus, OrderStatus, ProductStatus, StoreStatus, UserRole } from "@minimal-mall/types";
 import {
+  appendDemoAuditLog,
   confirmDemoOrderReceive,
   createDemoAfterSale,
   createDemoMerchantApplication,
@@ -458,34 +459,83 @@ export class DemoMallWriteService implements MallWriteService {
 
   async updateStoreStatus(input: { actorId?: string; storeId: string; status: StoreStatus }) {
     const current = listDemoStores().find((store) => store.id === input.storeId);
-    if (current?.status === input.status) return "店铺复核完成，状态未变化";
+    if (current?.status === input.status) {
+      appendDemoAuditLog({
+        actorId: input.actorId,
+        actorRole: "ADMIN",
+        action: "STORE_REVIEW",
+        targetType: "Store",
+        targetId: input.storeId,
+        metadata: { status: input.status, reviewedOnly: true }
+      });
+      return "店铺复核完成，状态未变化";
+    }
     updateDemoStoreStatus(input);
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "ADMIN",
+      action: input.status === "FROZEN" ? "STORE_FREEZE" : "STORE_ACTIVATE",
+      targetType: "Store",
+      targetId: input.storeId,
+      metadata: { status: input.status, reviewedOnly: false }
+    });
     return input.status === "FROZEN" ? "店铺已冻结" : "店铺已恢复经营";
   }
 
   async createShipment(input: { actorId?: string; storeId?: string; orderNo: string; status: OrderStatus }) {
     validateShipmentInput(input);
     const trackingNo = makeVirtualTrackingNo(input.orderNo);
-    createDemoShipment({ orderNo: input.orderNo, status: input.status, storeId: input.storeId, trackingNo });
+    const order = createDemoShipment({ orderNo: input.orderNo, status: input.status, storeId: input.storeId, trackingNo });
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "MERCHANT",
+      action: "CREATE_SHIPMENT",
+      targetType: "Order",
+      targetId: order.id,
+      metadata: { trackingNo, storeId: order.shipment?.storeId }
+    });
     return { message: `虚拟运单已生成：${trackingNo}`, trackingNo };
   }
 
   async handleAfterSale(input: { actorId?: string; afterSaleId?: string; action: "approve" | "reject"; reply: string }) {
     validateAfterSaleDecisionInput(input);
-    updateDemoAfterSale(input);
+    const request = updateDemoAfterSale(input);
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "MERCHANT",
+      action: input.action === "approve" ? "AFTER_SALE_APPROVE" : "AFTER_SALE_REJECT",
+      targetType: "AfterSaleRequest",
+      targetId: request.id,
+      metadata: { reply: input.reply, status: request.status }
+    });
     return input.action === "approve" ? "售后已通过并记录审计日志" : "售后已驳回并记录审计日志";
   }
 
   async reviewMerchantApplication(input: { actorId?: string; applicationId?: string; action: "approve" | "reject"; reason?: string }) {
     validateMerchantReviewInput(input);
-    updateDemoMerchantApplication(input);
+    const application = updateDemoMerchantApplication(input);
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "ADMIN",
+      action: input.action === "approve" ? "MERCHANT_REVIEW_APPROVE" : "MERCHANT_REVIEW_REJECT",
+      targetType: "MerchantApplication",
+      targetId: application.id,
+      metadata: { reason: input.reason ?? "", status: application.status }
+    });
     return input.action === "approve" ? "商家审核已通过，店铺已生成" : "商家申请已驳回";
   }
 
   async saveHomeBanner(input: HomeBannerInput) {
     validateHomeBannerInput(input);
-    void input.actorId;
-    saveDemoHomeBanner(input);
+    const banner = saveDemoHomeBanner(input);
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "ADMIN",
+      action: "HOME_BANNER_SAVE",
+      targetType: "HomeBanner",
+      targetId: banner.id,
+      metadata: { title: banner.title, status: banner.status }
+    });
     return "首页配置已保存，顾客首页展示已更新";
   }
 
@@ -493,7 +543,15 @@ export class DemoMallWriteService implements MallWriteService {
     validateSystemSettingInput(input);
     const setting = getDemoSystemSetting(input.key);
     if (!setting) throw new Error("系统配置项不存在");
-    updateDemoSystemSetting(input.key, nextSystemSettingValue(input.key, setting.value, input.value));
+    const updated = updateDemoSystemSetting(input.key, nextSystemSettingValue(input.key, setting.value, input.value));
+    appendDemoAuditLog({
+      actorId: input.actorId,
+      actorRole: "ADMIN",
+      action: "SYSTEM_SETTING_UPDATE",
+      targetType: "SystemSetting",
+      targetId: input.key,
+      metadata: { from: setting.value, to: updated.value }
+    });
     return "系统配置已更新并写入审计日志";
   }
 }
