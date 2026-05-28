@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { AuthenticatedUser, ProtectedArea } from "@minimal-mall/auth";
 import { canAccessArea } from "@minimal-mall/auth";
+import { getPrismaClient, isPrismaDataMode } from "./data/db";
 
 export const SESSION_COOKIE_NAME = "minimal_mall_session";
 
@@ -48,7 +49,30 @@ function decodeSession(value: string): AuthenticatedUser | null {
 export async function getCurrentSessionUser() {
   const cookieStore = await cookies();
   const cookie = cookieStore.get(SESSION_COOKIE_NAME);
-  return cookie ? decodeSession(cookie.value) : null;
+  const sessionUser = cookie ? decodeSession(cookie.value) : null;
+  if (!sessionUser || !isPrismaDataMode()) return sessionUser;
+
+  const db = await getPrismaClient();
+  const user = await db.user.findUnique({
+    where: { id: sessionUser.id },
+    select: {
+      id: true,
+      role: true,
+      status: true,
+      email: true,
+      phone: true,
+      stores: { select: { id: true } }
+    }
+  });
+  if (!user || user.status !== "ACTIVE") return null;
+  return {
+    id: user.id,
+    role: user.role,
+    status: user.status,
+    email: user.email,
+    phone: user.phone,
+    storeIds: user.stores.map((store) => store.id)
+  };
 }
 
 export async function setSessionUser(user: AuthenticatedUser) {
