@@ -19,7 +19,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Minimal Mall 在线商城",
-  description: "顾客前台、商家中台、管理员后台一体化课程项目"
+  description: "精选日常好物、购物车、订单、卖家中心和平台管理的一体化在线商城"
 };
 
 interface SearchItem {
@@ -144,7 +144,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="zh-CN">
       <body>
-        <AppNavigation cartCount={cartCount} searchItems={searchItems}>
+        <AppNavigation cartCount={cartCount} searchItems={searchItems} userRole={sessionUser?.role}>
           {children}
         </AppNavigation>
       </body>

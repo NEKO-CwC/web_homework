@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ArrowRight, ShoppingCart, Store } from "lucide-react";
 import { Card, StatusBadge } from "@minimal-mall/ui";
 import { AddCartForm } from "./components/AddCartForm";
-import { EmptyState, ErrorState, LoadingState } from "./components/PageState";
+import { EmptyState } from "./components/PageState";
 import { listCategories, listDiscoverProducts, listHomeBanners, listStores, searchDiscoverProducts } from "@/lib/data";
 import { formatMoney } from "@/lib/format";
 
@@ -38,7 +38,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           <div>
             <div className="eyebrow"><span className="pulse" />Minimal Mall</div>
             <h2>{hero?.title ?? "桌面焕新季"}</h2>
-            <p>{hero?.subtitle ?? "精选智能台灯、收纳与办公配件。"} 当前首页内容来自可维护 Banner seed，管理员保存配置后会同步到顾客首页。</p>
+            <p>{hero?.subtitle ?? "精选智能台灯、收纳与办公配件。"} 从桌面收纳到通勤配件，挑选更适合日常生活的实用好物。</p>
             <div className="hero-actions">
               <Link className="ui-button ui-button--primary" href="#products">
                 浏览商品 <ArrowRight size={16} />
@@ -50,9 +50,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           </div>
           <div className="device-card">
             <div className="device-screen">
-              <strong>购物主链路</strong>
+              <strong>今日推荐</strong>
               <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-                注册 / 登录 &gt; 浏览商品 &gt; 加入购物车 &gt; 虚拟支付 &gt; 商家发货 &gt; 确认收货 &gt; 评价 / 售后
+                热门单品、精选店铺和限时上新，为你的桌面、通勤与居家场景补齐细节。
               </p>
               {products.slice(0, 2).map((product) => (
                 <div className="mini-product" key={product.id}>
@@ -79,7 +79,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
       <section className="section-head">
         <div>
           <h3>分类与搜索</h3>
-          <p>仅展示上架、库存充足、商家未冻结的商品，关键词匹配商品、描述和店铺。</p>
+          <p>按类目浏览上新商品，也可以直接搜索商品名、卖点或店铺。</p>
         </div>
       </section>
       <form className="form grid cols-4" method="get" action="/#products" style={{ marginBottom: 18 }}>
@@ -113,7 +113,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
       <section className="section-head" id="products">
         <div>
           <h3>{keyword ? `“${keyword}”搜索结果` : selectedCategory ? `${selectedCategory.name}商品` : "精选商品"}</h3>
-          <p>{selectedCategory ? `${selectedCategory.name}分类 · ` : ""}商品卡片包含图片占位、标题、卖点、价格和加入购物车主操作。</p>
+          <p>{selectedCategory ? `${selectedCategory.name}分类 · ` : ""}查看价格、库存和店铺信息，喜欢的商品可以直接加入购物车。</p>
         </div>
         <Link className="ui-button ui-button--secondary" href="/cart">
           <ShoppingCart size={16} /> 购物车
@@ -157,14 +157,26 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
       <section className="section-head">
         <div>
-          <h3>页面状态覆盖</h3>
-          <p>当前迭代显式保留加载、空数据和错误状态样式，后续接入真实请求时复用。</p>
+          <h3>服务保障</h3>
+          <p>围绕在线购物的核心体验，提供订单跟踪、售后申请和商家入驻能力。</p>
         </div>
       </section>
       <div className="grid cols-3">
-        <LoadingState />
-        <EmptyState label="搜索没有匹配商品" />
-        <ErrorState />
+        <Card className="panel">
+          <h3>虚拟物流</h3>
+          <p style={{ color: "var(--muted)", lineHeight: 1.6, margin: 0 }}>下单后可在订单页查看运单号和物流进度。</p>
+        </Card>
+        <Card className="panel">
+          <h3>评价售后</h3>
+          <p style={{ color: "var(--muted)", lineHeight: 1.6, margin: 0 }}>收货后可评价商品，也能提交退换货申请。</p>
+        </Card>
+        <Card className="panel">
+          <h3>商家入驻</h3>
+          <p style={{ color: "var(--muted)", lineHeight: 1.6, margin: "0 0 16px" }}>有自己的商品和店铺资料，可以申请成为平台商家。</p>
+          <Link className="ui-button ui-button--secondary" href="/merchant/apply">
+            <Store size={16} /> 申请开店
+          </Link>
+        </Card>
       </div>
     </>
   );

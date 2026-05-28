@@ -99,12 +99,50 @@ export async function getActorId(fallbackId: string) {
 export async function requireSessionUser(area: ProtectedArea) {
   const user = await getCurrentSessionUser();
   if (canAccessArea(user, area)) return { user, denied: null };
-  const needsLogin = area === "customer" && !user;
+  if (!user) {
+    const target = area === "merchant" ? "卖家中心或开店申请" : area === "admin" ? "管理后台" : "购物车、订单和售后页面";
+    return {
+      user: null,
+      denied: {
+        title: "请先登录",
+        message: `请登录后访问${target}。`,
+        actionHref: "/account",
+        actionLabel: "登录或注册"
+      }
+    };
+  }
+
+  if (area === "merchant") {
+    return {
+      user: null,
+      denied: {
+        title: "当前账号不能访问卖家中心",
+        message: "你可以申请开店，或切换到已通过审核的商家账号。",
+        actionHref: "/merchant/apply",
+        actionLabel: "申请开店"
+      }
+    };
+  }
+
+  if (area === "admin") {
+    return {
+      user: null,
+      denied: {
+        title: "当前账号不能访问管理后台",
+        message: "请切换到管理员账号，或返回商城继续浏览商品。",
+        actionHref: "/account",
+        actionLabel: "切换账号"
+      }
+    };
+  }
+
   return {
     user: null,
     denied: {
-      title: needsLogin ? "请先登录" : "403 无权访问",
-      message: needsLogin ? "请登录后访问购物车、订单和售后页面。" : "当前账号无权访问该工作台。"
+      title: "当前账号不能访问此页面",
+      message: "请切换为顾客账号，或返回商城继续浏览商品。",
+      actionHref: "/account",
+      actionLabel: "切换账号"
     }
   };
 }

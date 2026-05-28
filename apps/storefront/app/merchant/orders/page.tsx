@@ -23,7 +23,7 @@ export default async function MerchantOrdersPage({
   }>;
 }) {
   const { user, denied } = await requireSessionUser("merchant");
-  if (denied || !user) return <AccessDenied {...(denied ?? { title: "403 无权访问", message: "当前账号无权访问商家中台。" })} />;
+  if (denied || !user) return <AccessDenied {...(denied ?? { title: "当前账号不能访问卖家中心", message: "请切换到商家账号，或返回商城继续浏览商品。" })} />;
   const params = await searchParams;
   const orderStatus = orderStatuses.includes(params?.orderStatus as OrderStatus)
     ? params?.orderStatus as OrderStatus
@@ -37,6 +37,8 @@ export default async function MerchantOrdersPage({
       <AccessDenied
         title="暂无店铺"
         message="当前账号还没有可处理订单的店铺，请先完成商家入驻审核。"
+        actionHref="/merchant/apply"
+        actionLabel="申请开店"
       />
     );
   }

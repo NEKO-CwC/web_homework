@@ -5,12 +5,16 @@ export function AccessDenied({
   title,
   message,
   actionHref = "/account",
-  actionLabel = "去登录"
+  actionLabel = "去登录",
+  secondaryHref = "/",
+  secondaryLabel = "返回商城"
 }: {
   title: string;
   message: string;
   actionHref?: string;
   actionLabel?: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
 }) {
   return (
     <>
@@ -23,9 +27,14 @@ export function AccessDenied({
       <Card className="panel">
         <div className="empty-state">
           <p>{message}</p>
-          <Link className="ui-button ui-button--primary" href={actionHref} style={{ marginTop: 16 }}>
-            {actionLabel}
-          </Link>
+          <div className="top-actions access-actions">
+            <Link className="ui-button ui-button--primary" href={actionHref}>
+              {actionLabel}
+            </Link>
+            <Link className="ui-button ui-button--secondary" href={secondaryHref}>
+              {secondaryLabel}
+            </Link>
+          </div>
         </div>
       </Card>
     </>

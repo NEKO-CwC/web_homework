@@ -19,7 +19,7 @@ export default async function MerchantProductsPage({
   }>;
 }) {
   const { user, denied } = await requireSessionUser("merchant");
-  if (denied || !user) return <AccessDenied {...(denied ?? { title: "403 无权访问", message: "当前账号无权访问商家中台。" })} />;
+  if (denied || !user) return <AccessDenied {...(denied ?? { title: "当前账号不能访问卖家中心", message: "请切换到商家账号，或返回商城继续浏览商品。" })} />;
   const params = await searchParams;
   const productStatus = params?.productStatus === "ACTIVE" || params?.productStatus === "OFF_SHELF" || params?.productStatus === "SOLD_OUT" || params?.productStatus === "DRAFT"
     ? params.productStatus
@@ -30,6 +30,8 @@ export default async function MerchantProductsPage({
       <AccessDenied
         title="暂无店铺"
         message="当前账号还没有可管理店铺，请先提交开店申请并等待管理员审核通过。"
+        actionHref="/merchant/apply"
+        actionLabel="申请开店"
       />
     );
   }
@@ -128,7 +130,7 @@ export default async function MerchantProductsPage({
       <section className="section-head">
         <div>
           <h3>在售商品</h3>
-          <p>状态、库存和前台展示来自商品 seed 数据；缺货商品保留占位但不可购买。</p>
+          <p>状态、库存和前台展示保持同步；缺货商品保留占位但不可购买。</p>
         </div>
       </section>
       <Card className="panel table-wrap">

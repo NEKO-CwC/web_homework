@@ -1,8 +1,22 @@
 "use client";
 
+import type { UserRole } from "@minimal-mall/types";
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutDashboard, Package, ReceiptText, Settings, ShoppingCart, Store, Truck, UserRound, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Home,
+  LayoutDashboard,
+  Package,
+  ReceiptText,
+  Settings,
+  ShoppingCart,
+  Store,
+  Truck,
+  UserRound,
+  X
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@minimal-mall/ui";
 import { MobileNavButton } from "./MobileNavButton";
@@ -17,33 +31,77 @@ interface SearchItem {
   text: string;
 }
 
-function createNavGroups(cartCount: number) {
+interface NavItem {
+  href: string;
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+  count?: number;
+  activeHref?: string;
+}
+
+type ShellMode = "storefront" | "merchant" | "admin";
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const workbenchSearchTypes = new Set(["商家商品", "商家订单", "售后", "商家申请", "商家", "广告位", "审计"]);
+
+function getShellMode(pathname: string): ShellMode {
+  if (pathname.startsWith("/admin")) return "admin";
+  if (pathname.startsWith("/merchant") && pathname !== "/merchant/apply") return "merchant";
+  return "storefront";
+}
+
+function createStorefrontItems(cartCount: number, userRole?: UserRole | null): NavItem[] {
+  const items: NavItem[] = [
+    { href: "/", label: "首页", icon: Home },
+    { href: "/#products", label: "分类", icon: Package, activeHref: "/#products" }
+  ];
+
+  if (userRole === "CUSTOMER") {
+    items.push(
+      { href: "/cart", label: "购物车", icon: ShoppingCart, count: cartCount },
+      { href: "/orders", label: "我的订单", icon: Truck },
+      { href: "/after-sale", label: "评价售后", icon: ReceiptText },
+      { href: "/merchant/apply", label: "申请开店", icon: Store }
+    );
+  } else if (userRole === "MERCHANT") {
+    items.push({ href: "/merchant/products", label: "卖家中心", icon: Store });
+  } else if (userRole === "ADMIN") {
+    items.push({ href: "/admin", label: "管理后台", icon: LayoutDashboard });
+  } else {
+    items.push(
+      { href: "/cart", label: "购物车", icon: ShoppingCart, count: cartCount },
+      { href: "/merchant/apply", label: "申请开店", icon: Store }
+    );
+  }
+
+  items.push({ href: "/account", label: userRole ? "我的账号" : "登录注册", icon: UserRound });
+  return items;
+}
+
+function createWorkbenchGroups(shell: Extract<ShellMode, "merchant" | "admin">): NavGroup[] {
+  if (shell === "merchant") {
+    return [
+      {
+        title: "卖家中心",
+        items: [
+          { href: "/merchant/products", label: "商品管理 / 店铺资料", icon: Package },
+          { href: "/merchant/orders", label: "订单发货 / 售后处理", icon: Truck }
+        ]
+      }
+    ];
+  }
+
   return [
     {
-      title: "顾客前台",
-      items: [
-        { href: "/", label: "首页 / 商品发现", icon: Home },
-        { href: "/cart", label: "购物车", icon: ShoppingCart, count: cartCount },
-        { href: "/checkout", label: "结算 / 虚拟支付", icon: ReceiptText },
-        { href: "/orders", label: "订单 / 虚拟物流", icon: Truck },
-        { href: "/after-sale", label: "评价 / 退换货", icon: UserRound },
-        { href: "/account", label: "注册登录 / 个人信息", icon: UserRound }
-      ]
-    },
-    {
-      title: "商家中台",
-      items: [
-        { href: "/merchant/apply", label: "商家开店申请", icon: Store },
-        { href: "/merchant/products", label: "商品 / 店铺管理", icon: Package },
-        { href: "/merchant/orders", label: "销售 / 物流 / 售后", icon: Truck }
-      ]
-    },
-    {
-      title: "管理员后台",
+      title: "管理后台",
       items: [
         { href: "/admin", label: "平台总览", icon: LayoutDashboard },
-        { href: "/admin/merchants", label: "商家审核管理", icon: Store },
-        { href: "/admin/home", label: "首页 / 广告位管理", icon: Home },
+        { href: "/admin/merchants", label: "商家审核", icon: Store },
+        { href: "/admin/home", label: "首页广告", icon: Home },
         { href: "/admin/system", label: "系统维护", icon: Settings }
       ]
     }
@@ -58,15 +116,68 @@ function isActivePath(pathname: string, href: string) {
 export function AppNavigation({
   cartCount,
   searchItems,
+  userRole,
   children
 }: {
   cartCount: number;
   searchItems: SearchItem[];
+  userRole?: UserRole | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const groups = createNavGroups(cartCount);
+  const shell = getShellMode(pathname);
+  const visibleSearchItems = shell === "storefront"
+    ? searchItems.filter((item) => !workbenchSearchTypes.has(item.type))
+    : searchItems;
+
+  if (shell === "storefront") {
+    const storefrontItems = createStorefrontItems(cartCount, userRole);
+
+    return (
+      <div className="storefront-shell">
+        <header className="storefront-header">
+          <div className="storefront-header-inner">
+            <Link className="storefront-brand" href="/">
+              <div className="brand-mark">M</div>
+              <div>
+                <strong>Minimal Mall</strong>
+                <span>精选日常好物</span>
+              </div>
+            </Link>
+            <nav className="storefront-nav" aria-label="商城导航">
+              {storefrontItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActivePath(pathname, item.activeHref ?? item.href);
+                return (
+                  <Link
+                    aria-current={active ? "page" : undefined}
+                    className={`storefront-nav-link ${active ? "active" : ""}`}
+                    href={item.href}
+                    key={item.href}
+                  >
+                    <Icon size={16} />
+                    <span>{item.label}</span>
+                    {typeof item.count === "number" ? <CartCountBadge initialCount={item.count} /> : null}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="storefront-search">
+              <GlobalSearch items={visibleSearchItems} />
+            </div>
+          </div>
+        </header>
+        <main className="main storefront-main">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  const groups = createWorkbenchGroups(shell);
+  const brandSubtitle = shell === "merchant" ? "卖家经营工作台" : "平台治理后台";
+  const backLabel = shell === "merchant" ? "返回商城" : "返回商城";
 
   return (
     <div className="app-shell">
@@ -84,7 +195,7 @@ export function AppNavigation({
             <div className="brand-mark">M</div>
             <div>
               <h1>Minimal Mall</h1>
-              <p>顾客 · 商家 · 管理员</p>
+              <p>{brandSubtitle}</p>
             </div>
           </Link>
           <Button
@@ -128,10 +239,12 @@ export function AppNavigation({
       <main className="main">
         <div className="topbar">
           <MobileNavButton open={open} onToggle={() => setOpen((current) => !current)} />
-          <GlobalSearch items={searchItems} />
+          <GlobalSearch items={visibleSearchItems} />
           <div className="top-actions">
-            <Link className="ui-button ui-button--secondary" href="/account">演示登录</Link>
-            <Link className="ui-button ui-button--primary" href="/merchant/apply">申请开店</Link>
+            <Link className="ui-button ui-button--secondary" href="/">
+              <ArrowLeft size={16} /> {backLabel}
+            </Link>
+            <Link className="ui-button ui-button--primary" href="/account">账号</Link>
           </div>
         </div>
         {children}

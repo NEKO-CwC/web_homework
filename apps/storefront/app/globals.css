@@ -72,6 +72,100 @@ a {
   min-height: 100vh;
 }
 
+.storefront-shell {
+  min-height: 100vh;
+}
+
+.storefront-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 72%, transparent);
+  background: color-mix(in oklch, var(--bg) 84%, transparent);
+  backdrop-filter: blur(22px);
+}
+
+.storefront-header-inner {
+  display: grid;
+  grid-template-columns: minmax(180px, auto) minmax(0, 1fr) minmax(280px, 520px);
+  gap: 18px;
+  align-items: center;
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  padding: 16px clamp(18px, 3vw, 46px);
+}
+
+.storefront-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.storefront-brand strong,
+.storefront-brand span {
+  display: block;
+}
+
+.storefront-brand strong {
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.storefront-brand span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.storefront-nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.storefront-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.storefront-nav-link {
+  display: inline-flex;
+  min-height: 40px;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background var(--motion-fast), color var(--motion-fast), transform var(--motion-fast);
+}
+
+.storefront-nav-link:hover,
+.storefront-nav-link.active {
+  background: var(--fg);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.storefront-search {
+  min-width: 0;
+}
+
+.storefront-search .search {
+  max-width: none;
+}
+
+.storefront-main {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  padding-top: 26px;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -1013,6 +1107,11 @@ a {
   text-align: center;
 }
 
+.access-actions {
+  justify-content: center;
+  margin-top: 16px;
+}
+
 .ui-button {
   display: inline-flex;
   min-height: 42px;
@@ -1097,6 +1196,15 @@ a {
 }
 
 @media (max-width: 1100px) {
+  .storefront-header-inner {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .storefront-nav {
+    order: 3;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -1155,6 +1263,15 @@ a {
 }
 
 @media (max-width: 780px) {
+  .storefront-header-inner {
+    padding: 12px 14px;
+  }
+
+  .storefront-nav-link {
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
   .main {
     padding-inline: 14px;
   }
