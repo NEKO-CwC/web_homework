@@ -10,7 +10,7 @@ function pngUploadBuffer() {
 const coreRoutes = [
   ["/", "精选商品"],
   ["/products/prod-lamp", "商品详情"],
-  ["/account", "注册登录 / 个人信息"],
+  ["/account", "登录 / 注册"],
 ] as const;
 
 const customerRoutes = [
@@ -71,11 +71,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function login(page: Page, account: string) {
+  await page.context().clearCookies();
   await page.goto("/account");
   await page.getByLabel("手机号 / 邮箱").first().fill(account);
   await page.getByLabel("密码").first().fill("12345678");
   await page.getByRole("button", { name: "进入商城" }).click();
-  await expect(page.getByText("登录成功")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的账号" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "退出登录" })).toBeVisible();
 }
 
 async function saveSystemSetting(page: Page, description: string, value: string) {
@@ -277,8 +279,59 @@ test.describe("admin route smoke after login", () => {
 
 test("customer can see login feedback", async ({ page }) => {
   await page.goto("/account");
+  await page.getByLabel("手机号 / 邮箱").fill("customer@example.com");
+  await page.getByLabel("密码").fill("12345678");
   await page.getByRole("button", { name: "进入商城" }).click();
-  await expect(page.getByText("登录成功，已进入顾客前台")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的账号" })).toBeVisible();
+  await expect(page.getByText("customer@example.com")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "个人信息" })).toBeVisible();
+});
+
+test("visitor account page switches login and registration without showing profile", async ({ page }) => {
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { name: "登录 / 注册" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "登录" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "注册会员" })).toHaveAttribute("aria-selected", "false");
+  await expect(page.getByRole("button", { name: "进入商城" })).toBeVisible();
+  await expect(page.locator("#registerAddress")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "个人信息" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "保存资料" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "退出登录" })).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "注册会员" }).click();
+  await expect(page.getByRole("tab", { name: "登录" })).toHaveAttribute("aria-selected", "false");
+  await expect(page.getByRole("tab", { name: "注册会员" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#registerAddress")).toBeVisible();
+  await expect(page.getByRole("button", { name: "进入商城" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "注册会员" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "登录" }).click();
+  await expect(page.getByRole("button", { name: "进入商城" })).toBeVisible();
+  await expect(page.locator("#registerAddress")).toHaveCount(0);
+});
+
+test("logged-in account page shows customer profile only for customer role", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { name: "我的账号" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "个人信息" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存资料" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "退出登录" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "登录" })).toHaveCount(0);
+
+  await login(page, "merchant@example.com");
+  await page.goto("/account");
+  await expect(page.getByText("商家账号")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "个人信息" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "保存资料" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "退出登录" })).toBeVisible();
+
+  await login(page, "admin@example.com");
+  await page.goto("/account");
+  await expect(page.getByText("管理员账号")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "个人信息" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "保存资料" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "退出登录" })).toBeVisible();
 });
 
 test("customer can logout and protected pages require login again", async ({ page }) => {
@@ -320,13 +373,17 @@ test("visitor can register a member and use the new profile at checkout", async 
   const address = `江西省南昌市红谷滩区注册验收路 ${isMobileProject ? "移动" : "桌面"} 号`;
 
   await page.goto("/account");
+  await page.getByRole("tab", { name: "注册会员" }).click();
   const registerForm = page.locator("form").filter({ has: page.locator("#registerAddress") });
   await registerForm.getByLabel("手机号 / 邮箱").fill(account);
+  await registerForm.getByLabel("密码").fill("12345678");
   await registerForm.getByLabel("昵称").fill(nickname);
   await registerForm.getByLabel("联系电话").fill(phone);
   await registerForm.getByLabel("默认地址").fill(address);
   await registerForm.getByRole("button", { name: "注册会员" }).click();
-  await expect(page.getByText("注册成功，已进入顾客前台")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的账号" })).toBeVisible();
+  await expect(page.getByText(account)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "个人信息" })).toBeVisible();
 
   await page.goto("/checkout");
   await expect(page.getByLabel("收货人")).toHaveValue(nickname);
@@ -336,9 +393,13 @@ test("visitor can register a member and use the new profile at checkout", async 
 
 test("visitor registration shows duplicate account feedback", async ({ page }) => {
   await page.goto("/account");
+  await page.getByRole("tab", { name: "注册会员" }).click();
   const registerForm = page.locator("form").filter({ has: page.locator("#registerAddress") });
   await registerForm.getByLabel("手机号 / 邮箱").fill("customer@example.com");
+  await registerForm.getByLabel("密码").fill("12345678");
+  await registerForm.getByLabel("昵称").fill("重复账号");
   await registerForm.getByLabel("联系电话").fill("13800000991");
+  await registerForm.getByLabel("默认地址").fill("江西省南昌市红谷滩区重复账号测试地址");
   await registerForm.getByRole("button", { name: "注册会员" }).click();
   await expect(registerForm.getByText("手机号或邮箱已注册")).toBeVisible();
 });
@@ -544,6 +605,17 @@ test("customer can upload after-sale evidence before submitting", async ({ page 
   await expect(page.getByLabel("凭证图片")).toHaveValue(/\/uploads\/evidence-/);
 });
 
+test("after-sale page uses customer-facing sections without static tabs or internal status copy", async ({ page }) => {
+  await login(page, "customer@example.com");
+  await page.goto("/after-sale");
+  await expect(page.getByRole("heading", { name: "提交评价" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "发起售后" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "重复评价禁用" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "凭证可选" })).toHaveCount(0);
+  await expect(page.getByText("REQUESTED")).toHaveCount(0);
+  await expect(page.getByText("商家中台")).toHaveCount(0);
+});
+
 test("image upload surfaces simulated storage failures", async ({ page }) => {
   await login(page, "customer@example.com");
   await page.goto("/after-sale");
@@ -580,6 +652,8 @@ test("customer sees stale after-sale business errors without leaving the page", 
     option?.removeAttribute("disabled");
   });
   await afterSaleForm.getByLabel("选择订单商品").selectOption("item-4");
+  await afterSaleForm.getByLabel("原因").fill("测试状态限制");
+  await afterSaleForm.getByLabel("说明").fill("当前订单状态不应允许售后。");
   await afterSaleForm.getByRole("button", { name: "发起售后" }).click();
   await expect(afterSaleForm.getByText("当前订单状态不支持售后申请")).toBeVisible();
   await expect(page).toHaveURL(/\/after-sale/);
@@ -849,17 +923,31 @@ test("administrator can edit home banner status and system settings", async ({ p
   await expect(page.getByLabel("审计与缓存服务指标")).toContainText("缓存版本");
   await saveSystemSetting(page, "会员注册开关", "disabled");
 
+  await page.context().clearCookies();
   await page.goto("/account");
-  await page.getByRole("button", { name: "注册会员" }).last().click();
+  await page.getByRole("tab", { name: "注册会员" }).click();
+  const disabledRegisterForm = page.locator("form").filter({ has: page.locator("#registerAddress") });
+  await disabledRegisterForm.getByLabel("手机号 / 邮箱").fill("disabled-registration@example.com");
+  await disabledRegisterForm.getByLabel("密码").fill("12345678");
+  await disabledRegisterForm.getByLabel("昵称").fill("暂停注册用户");
+  await disabledRegisterForm.getByLabel("联系电话").fill("13800000992");
+  await disabledRegisterForm.getByLabel("默认地址").fill("江西省南昌市红谷滩区暂停注册测试地址");
+  await disabledRegisterForm.getByRole("button", { name: "注册会员" }).click();
   await expect(page.getByText("会员注册已暂停")).toBeVisible();
 
+  await login(page, "admin@example.com");
   await page.goto("/admin/system");
   await saveSystemSetting(page, "会员注册开关", "enabled");
   await saveSystemSetting(page, "商家入驻人工审核", "auto");
 
   await login(page, "customer@example.com");
   await page.goto("/merchant/apply");
-  await page.getByRole("button", { name: "提交审核" }).click();
+  const merchantApplyForm = page.locator("form").filter({ has: page.locator("#storeName") });
+  await merchantApplyForm.getByLabel("店铺名称").fill("潮流配件仓");
+  await merchantApplyForm.getByLabel("经营类目").selectOption("cat-fashion");
+  await merchantApplyForm.getByLabel("店铺介绍").fill("主营通勤配件、卡包与旅行小物，提供稳定售后。");
+  await merchantApplyForm.getByLabel("资质图片").fill("/uploads/license-demo.png");
+  await merchantApplyForm.getByRole("button", { name: "提交审核" }).click();
   await expect(page.getByText("开店申请已自动通过")).toBeVisible();
   await page.goto("/merchant/products");
   await expect(page.getByText("商家商品 / 店铺管理").first()).toBeVisible();
