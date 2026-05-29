@@ -437,6 +437,17 @@ a {
   letter-spacing: -.035em;
 }
 
+.section-head.compact {
+  align-items: flex-start;
+  margin: 0 0 16px;
+}
+
+.muted-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 .hero {
   position: relative;
   overflow: hidden;
